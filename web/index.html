@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Paul Wei · Hyperliquid 追踪面板</title>
+<link rel="stylesheet" href="styles.css" />
+<script src="vendor/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<header>
+  <div class="header-row">
+    <div class="title">
+      <h1>Paul Wei · Hyperliquid BTC 永续追踪</h1>
+      <div class="addr">
+        地址 <a id="hyperbot-link" href="#" target="_blank" rel="noopener">0xdae4df7207feb3b350e4284c8efe5f7dac37f637</a>
+        <span class="muted">（点击跳转 Hyperbot 官方页面对照）</span>
+      </div>
+    </div>
+    <div id="summary-cards" class="cards">
+      <div class="card"><div class="label">账户价值</div><div class="value" id="card-av">—</div><div class="sub" id="card-av-source">clearinghouseState</div></div>
+      <div class="card"><div class="label">真实 BTC 仓位</div><div class="value" id="card-pos">—</div><div class="sub" id="card-pos-side">—</div></div>
+      <div class="card"><div class="label">真实杠杆 (有方向)</div><div class="value" id="card-lev">—</div><div class="sub">仓位名义价值 / 账户总价值</div></div>
+      <div class="card"><div class="label">校验</div><div class="value" id="card-match">—</div><div class="sub" id="card-match-detail">重建 vs 真实</div></div>
+      <div class="card"><div class="label">数据更新</div><div class="value" id="card-update">—</div><div class="sub" id="card-update-detail">本地最近一次抓取</div></div>
+    </div>
+  </div>
+</header>
+
+<section class="controls">
+  <div class="control-group">
+    <span class="label">K 线粒度</span>
+    <div class="seg" id="seg-interval" role="tablist">
+      <button data-val="1d">1d</button>
+      <button data-val="4h" class="active">4h</button>
+      <button data-val="1h">1h</button>
+    </div>
+  </div>
+  <div class="control-group">
+    <span class="label">回放</span>
+    <button id="btn-play">▶ 播放</button>
+    <button id="btn-step-back">⏮</button>
+    <button id="btn-step-fwd">⏭</button>
+    <label class="speed">速度
+      <select id="play-speed">
+        <option value="1">1×</option>
+        <option value="2" selected>2×</option>
+        <option value="5">5×</option>
+        <option value="15">15×</option>
+        <option value="60">60×</option>
+      </select>
+    </label>
+  </div>
+  <div class="control-group">
+    <span class="label">钉住时间</span>
+    <button id="btn-pin" title="把当前 hover 的时间钉住，鼠标离开不跳走">📌 切换钉住</button>
+    <button id="btn-pin-latest">最新</button>
+    <span id="pin-state" class="muted">未钉住（跟随鼠标）</span>
+  </div>
+  <div class="control-group">
+    <span class="label">主图挂单线</span>
+    <select id="order-lines-count">
+      <option value="0">关闭</option>
+      <option value="4">前 4 大</option>
+      <option value="8">前 8 大</option>
+      <option value="16">前 16 大</option>
+      <option value="999" selected>全部</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <span class="label">成交标记</span>
+    <div class="seg" id="seg-fills-filter">
+      <button data-val="all" class="active" title="主动 + 被动成交全显示">全部</button>
+      <button data-val="taker" title="只显示主动 / taker 成交（Paul 主动发起的）">仅主动</button>
+    </div>
+  </div>
+  <div class="control-group right">
+    <span class="muted small">成交量、K 线均来自 Hyperliquid 自家（不是 Binance / Coinbase）</span>
+  </div>
+</section>
+
+<main>
+  <div class="charts">
+    <div id="chart-price" class="chart"></div>
+    <div id="chart-lev" class="chart small"></div>
+  </div>
+
+  <aside class="side">
+    <div class="panel">
+      <div class="panel-head">选中时间的状态</div>
+      <div class="kv">
+        <div><span class="k">时间</span><span class="v" id="sel-time">—</span></div>
+        <div><span class="k">BTC 价格 (close)</span><span class="v" id="sel-px">—</span></div>
+        <div><span class="k">当时 BTC 仓位</span><span class="v" id="sel-pos">—</span></div>
+        <div><span class="k">名义价值</span><span class="v" id="sel-notional">—</span></div>
+        <div><span class="k">账户价值</span><span class="v" id="sel-av">—</span></div>
+        <div><span class="k">实际杠杆 (有方向)</span><span class="v" id="sel-lev">—</span></div>
+        <div><span class="k">该 K 线成交笔数</span><span class="v" id="sel-fillscount">—</span></div>
+        <div><span class="k">即将到来的市价成交</span><span class="v" id="sel-incoming">—</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">活跃挂单（推断可能仍在挂的订单）</div>
+      <div class="orders-meta muted small">
+        百分比 = 订单名义价值 / 当时账户价值。带 <span class="tag-inferred">推断</span> 表示状态时间戳早于该时刻但状态为 open。
+      </div>
+      <table id="orders-table">
+        <thead><tr>
+          <th>方向</th><th>价格</th><th>BTC 数量</th><th>名义价值</th><th>占账户%</th><th>类型</th><th>创建</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="muted small" id="orders-empty" hidden>该时刻没有活跃挂单。</div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <details>
+    <summary>关于数据 / 指标说明</summary>
+    <ul>
+      <li><strong>K 线</strong>来自 Hyperliquid <code>candleSnapshot</code>。<strong>成交量是 Hyperliquid 自家</strong>，不是 Binance / Coinbase。</li>
+      <li><strong>真实仓位 / 账户价值</strong>来自 Hyperliquid <code>clearinghouseState</code> 最近一次抓取，是交易所侧的权威值。</li>
+      <li><strong>重建仓位</strong>由 <code>fills</code> 逐条累加而来：<code>B</code> 增加多头、<code>A</code> 减少多头（变空头）。如顶部"校验"不匹配，请检查 fills 方向解析或增量是否完整。</li>
+      <li><strong>实际杠杆（带方向）</strong>= 仓位名义价值 / 账户总价值。正值为多头，负值为空头。例：-0.0263 意为 2.63% Short。</li>
+      <li><strong>挂单对账户的百分比</strong>= 订单 <em>名义价值</em> / 当时账户价值，<em>不是</em>占当前持仓的百分比。</li>
+      <li>箭头标记：<span style="color:#26a69a">▲ 暗绿</span> = 被动买，<span style="color:#ffa726">▲ 亮橙</span> = <strong>主动买</strong>（taker buy）；<span style="color:#ef5350">▼ 暗红</span> = 被动卖，<span style="color:#ec407a">▼ 洋红</span> = <strong>主动卖</strong>（taker sell）。主动 = <code>crossed=true</code>，通常对应 market-like 行为。"即将到来的市价成交"会提前 3 根 K 线在右侧面板上提示。</li>
+      <li>有些订单只能从 <code>historicalOrders</code> 的 2000 条滚动窗口里取到，<strong>更早的订单可能已经掉出窗口</strong>——数据库会把抓到过的所有订单永久保存。</li>
+      <li>"推断"标签：我们最后一次看到该订单状态为 open，但状态时间戳早于选中时刻，无法 100% 确定它在当时仍然挂着；前端按"还在挂"显示但加标签提醒。</li>
+      <li>主图上的挂单线段从选中时刻向右延伸（右侧 = 未来）：状态仍为 open 的挂单延伸到图右端，已成交/撤销的挂单延伸到结束时间。虚线代表"推断仍活跃"。</li>
+    </ul>
+  </details>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

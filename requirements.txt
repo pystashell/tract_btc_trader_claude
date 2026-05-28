@@ -1,0 +1,4 @@
+requests>=2.28
+# 以下仅 import_artemis.py 需要（从 S3 流式读 parquet）：
+duckdb>=1.0
+boto3>=1.30

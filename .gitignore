@@ -1,0 +1,105 @@
+# ============================================================
+# Paul Wei Hyperliquid 追踪项目 · .gitignore
+# 准备推送 GitHub 前的严格版：所有本地数据、缓存、私密、个人化
+# 配置一律不上传；只传源代码 + vendored 依赖 + 项目级文档。
+# ============================================================
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+*.pyo
+
+# ---- 虚拟环境 ----
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ---- 本地数据（默认在项目根的 data/，也可被 PAUL_DATA_ROOT 改到外部盘） ----
+# 体积可大可小、可重新生成、含逐周累计的研究数据 —— 一律不入库
+data/paul.db
+data/paul.db-journal
+data/paul.db-wal
+data/paul.db-shm
+data/raw/
+data/export/
+data/artemis_staging/
+
+# 下载中断的临时分块文件
+*.part
+
+# 大数据格式（哪里都不应被 git 跟踪）
+*.lz4
+*.parquet
+*.tar
+*.tar.xz
+*.tar.gz
+*.zip
+
+# ---- 凭证 / 密钥 / 本地环境 ----
+# 千万别 commit AWS / API / 钱包私钥之类的东西
+.env
+.env.*
+*.env
+*.pem
+*.key
+secrets.json
+credentials.json
+*.local.json
+*.local.yaml
+*.local.toml
+local_settings.*
+config.local.*
+
+# ---- IDE / 编辑器 ----
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ---- 操作系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+
+# ---- Claude Code 本地设置（保留 launch.json，忽略本地权限/密钥） ----
+.claude/settings.local.json
+.claude/conversation/
+
+# ---- 一次性调研 / 临时脚本 ----
+check_*.py
+scratch_*.py
+tmp_*.py
+debug_*.py
+
+# ---- 日志 / 备份 ----
+*.log
+*.bak
+*.tmp
+*.orig
+*.rej
+
+# ---- Node / 前端构建产物（项目目前没用，先放着以防未来加 build） ----
+node_modules/
+dist/
+.cache/

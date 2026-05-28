@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "paul-dashboard",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["-3.12", "-X", "utf8", "server.py", "--no-browser"],
+      "port": 8765
+    }
+  ]
+}

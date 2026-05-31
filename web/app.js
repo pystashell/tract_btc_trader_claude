@@ -34,6 +34,8 @@ const state = {
   playIndex: -1,
   maxOrderLines: 999,       // 主图最多画几条挂单线段；默认全部，可在控制栏切到 4/8/16/关闭
   showMakerFills: true,     // 主图是否显示被动（maker）成交箭头；false 时只剩主动箭头
+  showAllOrders: false,     // 是否在主图一次性显示所有订单的完整生命周期（与选中时刻无关）
+  _allOrdersRendered: false, // 全部订单模式下挂单线是否已画（避免 hover 重画导致卡顿）
 };
 window.state = state;       // 方便控制台调试
 
@@ -311,6 +313,8 @@ function applyTimelineToCharts() {
 
   applyFillMarkers();
 
+  // 切了粒度 → K 线坐标系变了，全部订单模式需要按新粒度重画一次
+  state._allOrdersRendered = false;
   // 默认选中最后一根
   state.selectedT = bars[bars.length - 1].t;
   renderForSelected();
@@ -443,8 +447,18 @@ function renderForSelected() {
     els.selIncoming.className = "v";
   }
 
-  // 主图上挂单的水平线
-  drawActiveOrderLines(bar);
+  // 主图上挂单的水平线。
+  // 全部订单模式下，线条与选中时刻无关，hover 时不必重画——
+  // 只在模式 / 粒度变化时画一次（用 _allOrdersRendered 标记缓存）。
+  if (state.showAllOrders) {
+    if (!state._allOrdersRendered) {
+      drawActiveOrderLines(bar);
+      state._allOrdersRendered = true;
+    }
+  } else {
+    state._allOrdersRendered = false;
+    drawActiveOrderLines(bar);
+  }
   // 表格
   renderOrdersTable(bar);
 }
@@ -472,7 +486,12 @@ function activeOrdersAt(tMs) {
 }
 
 function drawActiveOrderLines(bar) {
-  const orders = activeOrdersAt(bar.T || bar.t);
+  const tMs = bar.T || bar.t;
+  // 两种数据来源：
+  //   - 普通模式：只取"选中时刻仍活跃"的挂单，从选中时刻向右延伸（右=未来视角）
+  //   - 全部订单模式：取所有订单，各自画在真实生命周期区间，与选中时刻无关
+  //     （用来一次性总览 Paul 的全部挂单分布）
+  const orders = state.showAllOrders ? state.orders : activeOrdersAt(tMs);
   const av = bar.av;
   const withPct = orders.map(o => {
     const px = o.is_trigger ? o.trigger_px : o.limit_px;
@@ -484,10 +503,10 @@ function drawActiveOrderLines(bar) {
 
   // 先把要画的"数据描述"算好，再决定怎么复用 series
   const draws = [];
-  if (state.maxOrderLines > 0) {
-    const topN = withPct.slice(0, state.maxOrderLines);
+  // 全部订单模式不受"主图挂单线 N 条"限制（那个上限是给单时刻视图防遮挡用的）
+  if (state.maxOrderLines > 0 || state.showAllOrders) {
+    const topN = state.showAllOrders ? withPct : withPct.slice(0, state.maxOrderLines);
     const bars = state.timeline.bars;
-    const startTime = Math.floor(bar.t / 1000);
     if (state._candleTimesCache !== bars) {
       state._candleTimes = bars.map(b => Math.floor(b.t / 1000));
       state._candleTimesCache = bars;
@@ -500,14 +519,22 @@ function drawActiveOrderLines(bar) {
 
     for (const o of topN) {
       if (!o._px) continue;
+      // 起点：
+      //   - 全部订单模式 → 订单自己的 timestamp（真实生命周期，与选中时刻无关）
+      //   - 普通模式     → 选中时刻（从钉住点向右延伸的"未来"视角）
+      const segStartMs = state.showAllOrders ? o.timestamp : bar.t;
+      const segStart = Math.floor(segStartMs / 1000);
       let endTime;
       if (o.status === "open") endTime = openExtendTime;
       else {
         endTime = Math.floor(o.status_timestamp / 1000);
         if (endTime > chartEnd) endTime = chartEnd;
       }
-      if (endTime < startTime) continue;
-      const startCandle = candleAtOrAfter(candleTimes, startTime);
+      if (endTime < segStart) continue;
+      // 起点和终点都贴到 <= 该时刻的最近 K 线（用 ≤ 而不是 ≥），
+      // 否则当订单生命周期跨度小于一根 K 线粒度时，
+      // candleAtOrAfter(start) 会跳到下一根 K 线 → 超过 endCandle → 整段被丢。
+      const startCandle = candleAtOrBefore(candleTimes, segStart);
       if (startCandle === null) continue;
       const endCandle = o.status === "open"
         ? openExtendTime : candleAtOrBefore(candleTimes, endTime);
@@ -515,13 +542,7 @@ function drawActiveOrderLines(bar) {
 
       const isBuy = o.side === "B";
       const color = isBuy ? "rgba(38,166,154,0.9)" : "rgba(239,83,80,0.9)";
-      const pct = o._pct === null ? "" : ` ${(o._pct * 100).toFixed(2)}%`;
-      // 线型简单规则：
-      //   - 已成交（filled）          → 实线（成功命中）
-      //   - 其它（canceled/open/...） → 虚线（最终未成交或未来未知）
-      // 一句话：只有"事实成交了"才实线，其它一律虚线
-      // 主图上不再放任何起点 marker/文字——颜色表示买卖、线型表示成交与否、
-      // 价格轴标签会自动写出价格。完整明细在右侧表格里看。
+      // 线型按订单自身结局：成交 = 实线，未成交（撤销 / 仍在挂）= 点线
       const isFilled = o.status === "filled";
       const data = startCandle === endCandle
         ? [{ time: startCandle, value: o._px }]
@@ -529,9 +550,6 @@ function drawActiveOrderLines(bar) {
       draws.push({
         data,
         color,
-        // Solid = 已成交；Dotted（点线）= 未成交。
-        // 用 Dotted 而不是 Dashed 因为 Dashed 间距较大，几根 K 线宽的短线段
-        // 经常只渲染半段甚至看不见；Dotted 点距小，再短都能看出。
         lineStyle: isFilled ? LWC.LineStyle.Solid : LWC.LineStyle.Dotted,
       });
     }
@@ -672,6 +690,7 @@ function bindControls() {
   // 挂单线数量
   $("order-lines-count").addEventListener("change", (e) => {
     state.maxOrderLines = Number(e.target.value) || 0;
+    state._allOrdersRendered = false;  // 数量变化 → 全部订单模式也重画一次
     renderForSelected();
   });
 
@@ -682,6 +701,17 @@ function bindControls() {
       btn.classList.add("active");
       state.showMakerFills = btn.dataset.val === "all";
       applyFillMarkers();
+    });
+  });
+
+  // 显示全部订单：关 / 开
+  $("seg-show-all").querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      $("seg-show-all").querySelectorAll("button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.showAllOrders = btn.dataset.val === "on";
+      state._allOrdersRendered = false;  // 模式切换 → 强制重画一次
+      renderForSelected();
     });
   });
 

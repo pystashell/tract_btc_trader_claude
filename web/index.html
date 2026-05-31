@@ -74,6 +74,13 @@
       <button data-val="taker" title="只显示主动 / taker 成交（Paul 主动发起的）">仅主动</button>
     </div>
   </div>
+  <div class="control-group">
+    <span class="label">显示全部订单</span>
+    <div class="seg" id="seg-show-all">
+      <button data-val="off" class="active" title="只显示选中时刻仍活跃的挂单（默认）">关</button>
+      <button data-val="on" title="一次性把所有订单按各自完整生命周期画在图上，与选中时刻无关——用来总览 Paul 的全部挂单分布">开</button>
+    </div>
+  </div>
   <div class="control-group right">
     <span class="muted small">成交量、K 线均来自 Hyperliquid 自家（不是 Binance / Coinbase）</span>
   </div>
@@ -128,6 +135,7 @@
       <li>箭头标记：<span style="color:#26a69a">▲ 暗绿</span> = 被动买，<span style="color:#ffa726">▲ 亮橙</span> = <strong>主动买</strong>（taker buy）；<span style="color:#ef5350">▼ 暗红</span> = 被动卖，<span style="color:#ec407a">▼ 洋红</span> = <strong>主动卖</strong>（taker sell）。主动 = <code>crossed=true</code>，通常对应 market-like 行为。"即将到来的市价成交"会提前 3 根 K 线在右侧面板上提示。</li>
       <li>有些订单只能从 <code>historicalOrders</code> 的 2000 条滚动窗口里取到，<strong>更早的订单可能已经掉出窗口</strong>——数据库会把抓到过的所有订单永久保存。配合 weekly snapshot + fills 反推，Paul 的订单 lifecycle 实际是完整记录的。</li>
       <li>主图上的挂单线段从选中时刻向右延伸（右侧 = 未来），延伸到该挂单的结束时间（成交/撤销时点）；当前仍在挂的延伸到图右端。<strong>实线</strong> = 已成交（命中）；<strong>点线</strong> = 未成交（包括"已被撤销"和"当前还在挂、未来未知"两种情况）。挂单详细信息在右侧表格的 badge 中区分。</li>
+      <li><strong>显示全部订单</strong>（控制栏可开关，默认关）：开启后把所有订单一次性画在主图上，每条按自己<strong>真实的生命周期</strong>（创建 → 成交/撤销）画线，与当前选中时刻无关，用来总览 Paul 历史上全部挂单的价格分布。线型仍是：实线 = 成交、点线 = 未成交。关闭则回到默认的"只看选中时刻活跃挂单"。</li>
     </ul>
   </details>
 </footer>

@@ -322,37 +322,48 @@ function applyTimelineToCharts() {
 
 // 重新计算 + 套上主图的 fill 箭头。受 state.showMakerFills 影响。
 // 拆成 4 种箭头：被动买 / 主动买 / 被动卖 / 主动卖，每根 K 线最多 4 个标记。
+// 标记文字显示该笔成交的"占账户百分比"（fill_notional / account_value），
+// 而不是 BTC 数量——绝对量没有指导价值，占账户比例才能直观看出冲击大小。
 function applyFillMarkers() {
   if (!state.timeline) return;
   const bars = state.timeline.bars;
+  // av fallback：Paul 进场最初几天 portfolio.allTime 还没记录账户价值，
+  // 直接用 null 会让早期标记显示 "—"。用 bars 里第一个有 av 的值当 initialAv，
+  // 然后向前传播一个 lastAv，保证所有 fill 都能算出合理的占账户百分比。
+  let firstAv = null;
+  for (const b of bars) { if (b.av && b.av > 0) { firstAv = b.av; break; } }
+  let lastAv = firstAv;
   const markers = [];
   for (const b of bars) {
+    if (b.av && b.av > 0) lastAv = b.av;
     if (!b.fills || !b.fills.length) continue;
-    let makerBuy = 0, takerBuy = 0, makerSell = 0, takerSell = 0;
+    let makerBuyN = 0, takerBuyN = 0, makerSellN = 0, takerSellN = 0;  // notional
     for (const f of b.fills) {
-      const s = f.sz || 0;
+      const ntl = (f.sz || 0) * (f.px || 0);
       if (f.side === "B") {
-        if (f.crossed) takerBuy += s; else makerBuy += s;
+        if (f.crossed) takerBuyN += ntl; else makerBuyN += ntl;
       } else if (f.side === "A") {
-        if (f.crossed) takerSell += s; else makerSell += s;
+        if (f.crossed) takerSellN += ntl; else makerSellN += ntl;
       }
     }
     const tSec = Math.floor(b.t / 1000);
-    if (state.showMakerFills && makerBuy > 0) {
+    const av = (b.av && b.av > 0) ? b.av : lastAv;
+    const pct = (n) => (av && av > 0) ? `${(n / av * 100).toFixed(2)}%` : "—";
+    if (state.showMakerFills && makerBuyN > 0) {
       markers.push({ time: tSec, position: "belowBar", color: "#26a69a",
-                     shape: "arrowUp", text: `B ${makerBuy.toFixed(4)}` });
+                     shape: "arrowUp", text: `B ${pct(makerBuyN)}` });
     }
-    if (takerBuy > 0) {
+    if (takerBuyN > 0) {
       markers.push({ time: tSec, position: "belowBar", color: "#ffa726",
-                     shape: "arrowUp", text: `B ${takerBuy.toFixed(4)}（主动）` });
+                     shape: "arrowUp", text: `B ${pct(takerBuyN)}（主动）` });
     }
-    if (state.showMakerFills && makerSell > 0) {
+    if (state.showMakerFills && makerSellN > 0) {
       markers.push({ time: tSec, position: "aboveBar", color: "#ef5350",
-                     shape: "arrowDown", text: `S ${makerSell.toFixed(4)}` });
+                     shape: "arrowDown", text: `S ${pct(makerSellN)}` });
     }
-    if (takerSell > 0) {
+    if (takerSellN > 0) {
       markers.push({ time: tSec, position: "aboveBar", color: "#ec407a",
-                     shape: "arrowDown", text: `S ${takerSell.toFixed(4)}（主动）` });
+                     shape: "arrowDown", text: `S ${pct(takerSellN)}（主动）` });
     }
   }
   priceSeries.setMarkers(markers);
@@ -440,26 +451,20 @@ function renderForSelected() {
 
 function i_bars(a, b) { return Math.max(0, b - a); }
 
-// 计算在某时刻 t 仍然活跃的订单
+// 计算在某时刻 t 仍然活跃的订单（不再有"推断"概念——我们的数据完整覆盖了
+// Paul 的全部订单 lifecycle，每个订单的真实状态都是直接观测的）
 function activeOrdersAt(tMs) {
   const out = [];
   for (const o of state.orders) {
     if (o.timestamp > tMs) continue;             // 还没下
     if (o.status === "open") {
-      // 仍在挂或可能仍在挂
-      if (o.status_timestamp <= tMs) {
-        // 最后看到时还是 open；选中时间又比 status_timestamp 更晚，不能 100% 确定
-        // 但是只要 last_seen_at > tMs，那么 t 时刻仍 open 是确定的
-        const inferred = o.last_seen_at <= tMs;
-        out.push({ ...o, _inferred: inferred });
-      } else {
-        out.push({ ...o, _inferred: false });
-      }
+      // 仍在挂（已知事实，不是推断）
+      out.push(o);
     } else {
-      // 终态：filled / canceled / marginCanceled / triggered / rejected ...
-      // 该订单只有在 status_timestamp > t 时才算 t 时刻仍活跃
+      // 终态：filled / canceled / marginCanceled / triggered / rejected
+      // 在 t 时刻该订单已经经历完生命周期？只有 status_timestamp > t 时算活跃
       if (o.status_timestamp > tMs) {
-        out.push({ ...o, _inferred: false });
+        out.push(o);
       }
     }
   }
@@ -511,15 +516,23 @@ function drawActiveOrderLines(bar) {
       const isBuy = o.side === "B";
       const color = isBuy ? "rgba(38,166,154,0.9)" : "rgba(239,83,80,0.9)";
       const pct = o._pct === null ? "" : ` ${(o._pct * 100).toFixed(2)}%`;
-      const label = `${isBuy ? "买" : "卖"} ${fmtBtc(o.sz, 4)}${pct}${o._inferred ? " (推断)" : ""}`;
+      // 线型简单规则：
+      //   - 已成交（filled）          → 实线（成功命中）
+      //   - 其它（canceled/open/...） → 虚线（最终未成交或未来未知）
+      // 一句话：只有"事实成交了"才实线，其它一律虚线
+      // 主图上不再放任何起点 marker/文字——颜色表示买卖、线型表示成交与否、
+      // 价格轴标签会自动写出价格。完整明细在右侧表格里看。
+      const isFilled = o.status === "filled";
       const data = startCandle === endCandle
         ? [{ time: startCandle, value: o._px }]
         : [{ time: startCandle, value: o._px }, { time: endCandle, value: o._px }];
       draws.push({
         data,
         color,
-        lineStyle: o._inferred ? LWC.LineStyle.Dashed : LWC.LineStyle.Solid,
-        marker: { time: startCandle, position: "inBar", color, shape: "circle", text: label },
+        // Solid = 已成交；Dotted（点线）= 未成交。
+        // 用 Dotted 而不是 Dashed 因为 Dashed 间距较大，几根 K 线宽的短线段
+        // 经常只渲染半段甚至看不见；Dotted 点距小，再短都能看出。
+        lineStyle: isFilled ? LWC.LineStyle.Solid : LWC.LineStyle.Dotted,
       });
     }
   }
@@ -540,7 +553,8 @@ function drawActiveOrderLines(bar) {
     }
     s.applyOptions({ color: draws[i].color, lineStyle: draws[i].lineStyle });
     s.setData(draws[i].data);
-    try { s.setMarkers([draws[i].marker]); } catch (e) { /* ignore */ }
+    // 清空之前复用的 marker（如果有），让线段保持干净
+    try { s.setMarkers([]); } catch (e) { /* ignore */ }
   }
   while (state.activeOrderSeries.length > draws.length) {
     const s = state.activeOrderSeries.pop();
@@ -590,12 +604,18 @@ function renderOrdersTable(bar) {
 
   for (const o of rows) {
     const tr = document.createElement("tr");
-    tr.className = (o.side === "B" ? "buy" : "sell") + (o._inferred ? " inferred" : "");
+    tr.className = o.side === "B" ? "buy" : "sell";
     const pctStr = o._pct === null ? "—" : (o._pct * 100).toFixed(2) + "%";
     const typeStr = o.is_trigger ? `${o.order_type || "Trigger"} @${fmtUsd(o.trigger_px, 0)}`
       : (o.order_type || "Limit");
+    // status badge：成交=绿，撤销=灰，在挂=黄
+    const statusBadge = o.status === "filled"
+      ? '<span class="badge ok">成交</span>'
+      : (o.status === "open" || o.status === "triggered")
+        ? '<span class="badge open">在挂</span>'
+        : '<span class="badge canceled">撤销</span>';
     tr.innerHTML = `
-      <td class="left side">${o.side === "B" ? "买 Long" : "卖 Short"}${o._inferred ? '<span class="tag-inferred">推断</span>' : ""}</td>
+      <td class="left side">${o.side === "B" ? "买 Long" : "卖 Short"} ${statusBadge}</td>
       <td>${fmtUsd(o._px, 0)}</td>
       <td>${fmtBtc(o.sz, 5)}</td>
       <td>${fmtUsd(o._notional, 0)}</td>

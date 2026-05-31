@@ -100,9 +100,10 @@
       </div>
     </div>
     <div class="panel">
-      <div class="panel-head">活跃挂单（推断可能仍在挂的订单）</div>
+      <div class="panel-head">活跃挂单（选中时刻在挂的所有订单）</div>
       <div class="orders-meta muted small">
-        百分比 = 订单名义价值 / 当时账户价值。带 <span class="tag-inferred">推断</span> 表示状态时间戳早于该时刻但状态为 open。
+        百分比 = 订单名义价值 / 当时账户价值。每条订单的最终命运用 badge 标出：
+        <span class="badge ok">成交</span> / <span class="badge open">在挂</span> / <span class="badge canceled">撤销</span>。
       </div>
       <table id="orders-table">
         <thead><tr>
@@ -125,9 +126,8 @@
       <li><strong>实际杠杆（带方向）</strong>= 仓位名义价值 / 账户总价值。正值为多头，负值为空头。例：-0.0263 意为 2.63% Short。</li>
       <li><strong>挂单对账户的百分比</strong>= 订单 <em>名义价值</em> / 当时账户价值，<em>不是</em>占当前持仓的百分比。</li>
       <li>箭头标记：<span style="color:#26a69a">▲ 暗绿</span> = 被动买，<span style="color:#ffa726">▲ 亮橙</span> = <strong>主动买</strong>（taker buy）；<span style="color:#ef5350">▼ 暗红</span> = 被动卖，<span style="color:#ec407a">▼ 洋红</span> = <strong>主动卖</strong>（taker sell）。主动 = <code>crossed=true</code>，通常对应 market-like 行为。"即将到来的市价成交"会提前 3 根 K 线在右侧面板上提示。</li>
-      <li>有些订单只能从 <code>historicalOrders</code> 的 2000 条滚动窗口里取到，<strong>更早的订单可能已经掉出窗口</strong>——数据库会把抓到过的所有订单永久保存。</li>
-      <li>"推断"标签：我们最后一次看到该订单状态为 open，但状态时间戳早于选中时刻，无法 100% 确定它在当时仍然挂着；前端按"还在挂"显示但加标签提醒。</li>
-      <li>主图上的挂单线段从选中时刻向右延伸（右侧 = 未来）：状态仍为 open 的挂单延伸到图右端，已成交/撤销的挂单延伸到结束时间。虚线代表"推断仍活跃"。</li>
+      <li>有些订单只能从 <code>historicalOrders</code> 的 2000 条滚动窗口里取到，<strong>更早的订单可能已经掉出窗口</strong>——数据库会把抓到过的所有订单永久保存。配合 weekly snapshot + fills 反推，Paul 的订单 lifecycle 实际是完整记录的。</li>
+      <li>主图上的挂单线段从选中时刻向右延伸（右侧 = 未来），延伸到该挂单的结束时间（成交/撤销时点）；当前仍在挂的延伸到图右端。<strong>实线</strong> = 已成交（命中）；<strong>点线</strong> = 未成交（包括"已被撤销"和"当前还在挂、未来未知"两种情况）。挂单详细信息在右侧表格的 badge 中区分。</li>
     </ul>
   </details>
 </footer>

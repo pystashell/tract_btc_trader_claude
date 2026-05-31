@@ -186,16 +186,28 @@ main {
 #orders-table td.left, #orders-table th.left { text-align: left; }
 #orders-table tr.buy td.side { color: var(--green); }
 #orders-table tr.sell td.side { color: var(--red); }
-#orders-table tr.inferred { opacity: 0.85; }
-.tag-inferred {
+.badge {
   display: inline-block;
-  background: rgba(212, 172, 0, 0.18);
-  color: var(--yellow);
-  border: 1px solid rgba(212, 172, 0, 0.35);
   border-radius: 3px;
-  padding: 0 4px;
+  padding: 0 5px;
   font-size: 10px;
   margin-left: 4px;
+  border: 1px solid transparent;
+}
+.badge.ok {
+  background: rgba(38, 166, 154, 0.18);
+  color: var(--green);
+  border-color: rgba(38, 166, 154, 0.4);
+}
+.badge.canceled {
+  background: rgba(139, 148, 158, 0.18);
+  color: var(--muted);
+  border-color: rgba(139, 148, 158, 0.35);
+}
+.badge.open {
+  background: rgba(212, 172, 0, 0.18);
+  color: var(--yellow);
+  border-color: rgba(212, 172, 0, 0.4);
 }
 .orders-meta { margin-bottom: 4px; }
 

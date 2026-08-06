@@ -40,7 +40,8 @@ const state = {
   // 活跃挂单表的多级排序：按优先级排列，dir: 1 升序 / -1 降序。
   // 默认：买单全部在上、卖单在下（side），组内价格从低到高 → 整表从最低买单排到最高卖单。
   ordersSort: [{ key: "side", dir: 1 }, { key: "price", dir: 1 }],
-  // 技术指标：可加多条 EMA/SMA，每条自定义周期。{id, type:'ema'|'sma', period, color, widthLevel, series}
+  // 技术指标：普通 EMA/SMA 各有 1 条 series；布林带有中/上/下 3 条 series，默认 EMA 中轨。
+  // 共用字段：{id, type, period, color, widthLevel, hidden}；BB 另有 {basis, mult, upSeries, lowSeries}。
   indicators: [],
   // 挂单线颜色（买/卖可分别设置）
   orderColors: { buy: "#26a69a", sell: "#ef5350" },
@@ -143,11 +144,14 @@ const I18N = {
   "seg.on": { zh: "开", en: "On" },
   "ctl.indicators": { zh: "技术指标", en: "Indicators" },
   "ind.add": { zh: "+ 添加", en: "+ Add" },
-  "ind.edit_hint": { zh: "（在 K 线图左上角图例里改颜色/周期/类型、单独隐藏或删除）",
-                     en: "(edit color/period/type, hide or delete each in the chart's top-left legend)" },
+  "ind.edit_hint": { zh: "（在 K 线图左上角图例里改颜色/周期/类型；布林带还可改中轨与倍数）",
+                     en: "(edit color/period/type in the chart legend; bands also support basis and multiplier)" },
   "ind.thick": { zh: "粗", en: "W" },
+  "ind.bb_opt": { zh: "布林带 (EMA)", en: "Bollinger (EMA)" },
   "ind.ed_type": { zh: "类型", en: "Type" },
+  "ind.ed_basis": { zh: "中轨", en: "Basis" },
   "ind.ed_period": { zh: "周期", en: "Period" },
+  "ind.ed_mult": { zh: "倍数σ", en: "Mult σ" },
   "ind.ed_color": { zh: "颜色", en: "Color" },
   "ind.ed_width": { zh: "粗细", en: "Width" },
   "ind.ed_done": { zh: "完成", en: "Done" },
@@ -169,9 +173,10 @@ const I18N = {
   "t.show_off": { zh: "只显示选中时刻仍活跃的挂单（默认）", en: "Only orders live at the selected time (default)" },
   "t.show_on": { zh: "一次性把所有订单按各自完整生命周期画在图上，与选中时刻无关——用来总览 Paul 的全部挂单分布",
                  en: "Draw every order over its full lifecycle, independent of the selected time — an overview of all orders" },
-  "t.ind_type": { zh: "EMA 更贴近近期价格；SMA 是简单均线", en: "EMA weights recent prices more; SMA is a simple average" },
+  "t.ind_type": { zh: "EMA 更贴近近期价格；SMA 是简单均线；布林带默认采用 EMA 中轨 ± σ 倍同周期指数加权标准差，添加后可在图例切换为经典 SMA 口径并修改倍数/周期",
+                  en: "EMA weights recent prices more; SMA is a simple average; Bollinger defaults to an EMA mid-band ± σ times the same-period exponentially weighted deviation (switch to classic SMA basis or edit multiplier/period in the legend)" },
   "t.ind_period": { zh: "周期（多少根 K 线）", en: "Period (number of candles)" },
-  "t.ind_add": { zh: "添加一条均线，可加多条", en: "Add a moving average (multiple allowed)" },
+  "t.ind_add": { zh: "添加一个技术指标，可添加多个", en: "Add a technical indicator (multiple allowed)" },
   "t.color_buy": { zh: "买单线颜色", en: "Buy order line color" },
   "t.color_sell": { zh: "卖单线颜色", en: "Sell order line color" },
   "t.collapse": { zh: "隐藏右侧历史状态快照栏（选中时间的状态 + 活跃挂单），让 K 线更宽",
@@ -180,9 +185,9 @@ const I18N = {
   "t.ind_color": { zh: "线颜色", en: "Line color" },
   "t.ind_width": { zh: "线粗细（1 最细 → 5 最粗）", en: "Line width (1 thinnest → 5 thickest)" },
   "t.ind_remove": { zh: "移除", en: "Remove" },
-  "t.ind_toggle": { zh: "点眼睛：隐藏 / 显示这条线", en: "Eye: hide / show this line" },
-  "t.ind_edit": { zh: "点名字：修改这条指标（颜色 / 周期 / 类型 / 粗细）",
-                  en: "Click the name to edit this indicator (color / period / type / width)" },
+  "t.ind_toggle": { zh: "点眼睛：隐藏 / 显示这项指标", en: "Eye: hide / show this indicator" },
+  "t.ind_edit": { zh: "点名字：修改这项指标（颜色 / 周期 / 类型或中轨 / 倍数 / 粗细）",
+                  en: "Click the name to edit this indicator (color / period / type or basis / multiplier / width)" },
   "t.ind_del": { zh: "删除这条指标", en: "Delete this indicator" },
   "t.fullscreen": { zh: "全屏放大，只看 K 线（再点或按 Esc 退出）",
                     en: "Fullscreen — chart only (click again or press Esc to exit)" },
@@ -278,6 +283,8 @@ function renderPinState() {
 
 // 整体应用语言：静态文案 + 动态区域全部重刷
 function applyLang() {
+  // 编辑框是动态生成的；切换语言时先关闭，避免旧语言标签残留在新界面上。
+  if (_indEditor) closeIndicatorEditor();
   document.documentElement.lang = state.lang === "en" ? "en" : "zh-CN";
   document.title = t("app.title");
   applyStaticI18n();
@@ -614,7 +621,78 @@ function computeMA(bars, type, period) {
   return out;
 }
 
+// 布林带：中轨 = 均线，上下轨 = 中轨 ± mult·标准差。返回 {mid, up, low} 三条 [{time,value}]。
+//   basis="sma" → 经典布林带：SMA 中轨 + 窗口内总体标准差。
+//   basis="ema" → EMA 布林带：指数加权均值 + 指数加权标准差（West 增量式 EW 方差），
+//                 整条带子都由 EMA 口径推出，更贴近 Paul 用 EMA 上下沿挂单的风格。
+function computeBB(bars, basis, period, mult) {
+  const mid = [], up = [], low = [];
+  if (!bars || !bars.length || !(period >= 1)) return { mid, up, low };
+  const m = (mult > 0) ? mult : 2;
+  const push = (i, center, sd) => {
+    const tt = Math.floor(bars[i].t / 1000);
+    mid.push({ time: tt, value: center });
+    up.push({ time: tt, value: center + m * sd });
+    low.push({ time: tt, value: center - m * sd });
+  };
+  if (basis === "sma") {
+    let sum = 0, sumSq = 0;
+    for (let i = 0; i < bars.length; i++) {
+      const c = bars[i].c;
+      sum += c; sumSq += c * c;
+      if (i >= period) { const o = bars[i - period].c; sum -= o; sumSq -= o * o; }
+      if (i >= period - 1) {
+        const mean = sum / period;
+        const sd = Math.sqrt(Math.max(0, sumSq / period - mean * mean));
+        push(i, mean, sd);
+      }
+    }
+  } else {
+    const k = 2 / (period + 1);
+    let ema = null, varr = 0, seedSum = 0, seedSumSq = 0;
+    for (let i = 0; i < bars.length; i++) {
+      const c = bars[i].c;
+      if (i < period - 1) { seedSum += c; seedSumSq += c * c; continue; }
+      if (i === period - 1) {
+        seedSum += c; seedSumSq += c * c;
+        ema = seedSum / period;
+        varr = Math.max(0, seedSumSq / period - ema * ema);   // 前 period 根做种子
+      } else {
+        const delta = c - ema;
+        ema = ema + k * delta;
+        varr = (1 - k) * (varr + k * delta * delta);          // West 增量式指数加权方差
+      }
+      push(i, ema, Math.sqrt(Math.max(0, varr)));
+    }
+  }
+  return { mid, up, low };
+}
+
+// 图例 / 中轨标题文字：BB EMA90·2σ
+function bbTitle(ind) {
+  return `BB ${(ind.basis || "ema").toUpperCase()}${ind.period}·${ind.mult}σ`;
+}
+
+// 指标显示名（图例 + 价格轴标题）
+function indicatorLabel(ind) {
+  return ind.type === "bb" ? bbTitle(ind) : `${ind.type.toUpperCase()} ${ind.period}`;
+}
+
+// 遍历一条指标拥有的所有 series（普通均线 1 条；布林带 3 条）
+function indicatorSeriesList(ind) {
+  return ind.type === "bb" ? [ind.series, ind.upSeries, ind.lowSeries] : [ind.series];
+}
+
 function makeIndicatorSeries(ind) {
+  if (ind.type === "bb") {
+    const base = { color: ind.color, lineWidth: indWidthPx(ind.widthLevel), visible: !ind.hidden,
+                   priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false };
+    ind.upSeries  = priceChart.addLineSeries({ ...base });                       // 上轨
+    ind.lowSeries = priceChart.addLineSeries({ ...base });                       // 下轨
+    ind.series    = priceChart.addLineSeries({ ...base, lineStyle: LWC.LineStyle.Dashed,
+                       lastValueVisible: !ind.hidden, title: bbTitle(ind) });     // 中轨（虚线 + 轴上标题）
+    return;
+  }
   ind.series = priceChart.addLineSeries({
     color: ind.color,
     lineWidth: indWidthPx(ind.widthLevel),
@@ -622,8 +700,19 @@ function makeIndicatorSeries(ind) {
     priceLineVisible: false,
     lastValueVisible: !ind.hidden,   // 价格轴上显示该线最新值（带颜色，便于分辨哪条是哪条）
     crosshairMarkerVisible: false,
-    title: `${ind.type.toUpperCase()}${ind.period}`,
+    title: indicatorLabel(ind),
   });
+}
+
+// 用当前 bars 给一条指标灌数据（布林带一次灌 3 条）
+function setIndicatorData(ind, bars) {
+  if (!bars) return;
+  if (ind.type === "bb") {
+    const { mid, up, low } = computeBB(bars, ind.basis, ind.period, ind.mult);
+    ind.series.setData(mid); ind.upSeries.setData(up); ind.lowSeries.setData(low);
+  } else {
+    ind.series.setData(computeMA(bars, ind.type, ind.period));
+  }
 }
 
 function refreshIndicatorData() {
@@ -631,69 +720,101 @@ function refreshIndicatorData() {
   if (!bars) return;
   for (const ind of state.indicators) {
     if (!ind.series) makeIndicatorSeries(ind);
-    ind.series.setData(computeMA(bars, ind.type, ind.period));
+    setIndicatorData(ind, bars);
   }
 }
 
 function addIndicator(type, period) {
-  const ind = { id: _indColorIdx + "-" + period + "-" + type + "-" + state.indicators.length,
-                type, period, widthLevel: 2, hidden: false,
-                color: IND_COLORS[_indColorIdx++ % IND_COLORS.length], series: null };
+  if (!["ema", "sma", "bb"].includes(type) || !(period >= 1) || period > 1000) return false;
+  const color = IND_COLORS[_indColorIdx++ % IND_COLORS.length];
+  const id = _indColorIdx + "-" + period + "-" + type + "-" + state.indicators.length;
+  const ind = (type === "bb")
+    ? { id, type: "bb", basis: "ema", period, mult: 2, widthLevel: 2, hidden: false, color,
+        series: null, upSeries: null, lowSeries: null }
+    : { id, type, period, widthLevel: 2, hidden: false, color, series: null };
   state.indicators.push(ind);
   makeIndicatorSeries(ind);
-  if (state.timeline && state.timeline.bars) ind.series.setData(computeMA(state.timeline.bars, type, period));
+  setIndicatorData(ind, state.timeline && state.timeline.bars);
   renderIndicatorLegend();
+  return true;
 }
 
 function removeIndicator(id) {
   const i = state.indicators.findIndex(x => x.id === id);
   if (i === -1) return;
   if (_indEditor && _indEditor._indId === id) closeIndicatorEditor();   // 正在编辑它 → 关掉小框
-  if (state.indicators[i].series) priceChart.removeSeries(state.indicators[i].series);
+  for (const s of indicatorSeriesList(state.indicators[i])) {
+    if (s) { try { priceChart.removeSeries(s); } catch (e) { /* ignore */ } }
+  }
   state.indicators.splice(i, 1);
   renderIndicatorLegend();
 }
 
-// 改某条指标的周期（就地重算，复用同一条 series）
+// 改某条指标的周期（就地重算，复用同一批 series）
 function setIndicatorPeriod(id, period) {
   const ind = state.indicators.find(x => x.id === id);
-  if (!ind || !(period >= 1) || period > 1000) return;
+  if (!ind || !(period >= 1) || period > 1000) return false;
   ind.period = period;
-  ind.series.applyOptions({ title: `${ind.type.toUpperCase()}${period}` });
-  if (state.timeline && state.timeline.bars) ind.series.setData(computeMA(state.timeline.bars, ind.type, period));
+  ind.series.applyOptions({ title: indicatorLabel(ind) });
+  setIndicatorData(ind, state.timeline && state.timeline.bars);
   renderIndicatorLegend();
+  return true;
 }
-// 改颜色 / 线粗细（只改样式，不必重算数据）
+// 改颜色 / 线粗细（只改样式，不必重算数据）—— 布林带三条同色同粗
 function setIndicatorColor(id, color) {
   const ind = state.indicators.find(x => x.id === id);
   if (!ind || !color) return;
   ind.color = color;
-  ind.series.applyOptions({ color });   // 颜色输入框本身就是那个色块，不用重建 chip
+  for (const s of indicatorSeriesList(ind)) if (s) s.applyOptions({ color });
   renderIndicatorLegend();
 }
 function setIndicatorWidthLevel(id, level) {
   const ind = state.indicators.find(x => x.id === id);
   if (!ind || !(level >= 1) || level > 5) return;
   ind.widthLevel = level;
-  ind.series.applyOptions({ lineWidth: indWidthPx(level) });
+  for (const s of indicatorSeriesList(ind)) if (s) s.applyOptions({ lineWidth: indWidthPx(level) });
 }
-// 单独隐藏/显示某条指标线（图上左侧图例的眼睛）
+// 单独隐藏/显示某条指标（布林带三条一起）
 function toggleIndicatorVisible(id) {
   const ind = state.indicators.find(x => x.id === id);
   if (!ind || !ind.series) return;
   ind.hidden = !ind.hidden;
-  ind.series.applyOptions({ visible: !ind.hidden, lastValueVisible: !ind.hidden });
+  const vis = !ind.hidden;
+  ind.series.applyOptions({ visible: vis, lastValueVisible: vis });   // 中轨（或均线）带轴上标题
+  if (ind.type === "bb") {
+    ind.upSeries.applyOptions({ visible: vis });
+    ind.lowSeries.applyOptions({ visible: vis });
+  }
   renderIndicatorLegend();
 }
 
-// 改某条指标的类型（EMA↔SMA，需重算数据）
+// 改均线类型（EMA↔SMA）——仅普通均线指标
 function setIndicatorType(id, type) {
   const ind = state.indicators.find(x => x.id === id);
-  if (!ind || (type !== "ema" && type !== "sma")) return;
+  if (!ind || ind.type === "bb" || (type !== "ema" && type !== "sma")) return;
   ind.type = type;
-  ind.series.applyOptions({ title: `${type.toUpperCase()}${ind.period}` });
-  if (state.timeline && state.timeline.bars) ind.series.setData(computeMA(state.timeline.bars, type, ind.period));
+  ind.series.applyOptions({ title: indicatorLabel(ind) });
+  setIndicatorData(ind, state.timeline && state.timeline.bars);
   renderIndicatorLegend();
+}
+// 改布林带中轨口径（EMA↔SMA）
+function setIndicatorBasis(id, basis) {
+  const ind = state.indicators.find(x => x.id === id);
+  if (!ind || ind.type !== "bb" || (basis !== "ema" && basis !== "sma")) return;
+  ind.basis = basis;
+  ind.series.applyOptions({ title: indicatorLabel(ind) });
+  setIndicatorData(ind, state.timeline && state.timeline.bars);
+  renderIndicatorLegend();
+}
+// 改布林带带宽倍数 σ
+function setIndicatorMult(id, mult) {
+  const ind = state.indicators.find(x => x.id === id);
+  if (!ind || ind.type !== "bb" || !(mult > 0) || mult > 10) return false;
+  ind.mult = mult;
+  ind.series.applyOptions({ title: indicatorLabel(ind) });
+  setIndicatorData(ind, state.timeline && state.timeline.bars);
+  renderIndicatorLegend();
+  return true;
 }
 
 // 图左上角的指标图例（仿 TradingView），是指标的唯一交互入口：
@@ -713,7 +834,7 @@ function renderIndicatorLegend() {
     const name = document.createElement("span");
     name.className = "legend-name";
     name.style.color = ind.color;
-    name.textContent = `${ind.type.toUpperCase()} ${ind.period}`;
+    name.textContent = indicatorLabel(ind);
     name.title = t("t.ind_edit");
     name.addEventListener("click", (e) => { e.stopPropagation(); openIndicatorEditor(ind, name); });
     const del = document.createElement("button");
@@ -728,7 +849,7 @@ function renderIndicatorLegend() {
   }
 }
 
-// 点击图例名字弹出的小编辑框（颜色 / 周期 / 类型 / 粗细）
+// 点击图例名字弹出的小编辑框（颜色 / 周期 / 类型或中轨 / 倍数 / 粗细）
 let _indEditor = null;
 function _indEditorOutside(e) {
   if (_indEditor && !_indEditor.contains(e.target) && !e.target.classList.contains("legend-name")) {
@@ -745,29 +866,44 @@ function openIndicatorEditor(ind, anchorEl) {
   // 再点同一条名字 → 收起（切换）
   if (_indEditor && _indEditor._indId === ind.id) { closeIndicatorEditor(); return; }
   closeIndicatorEditor();
+  const isBB = ind.type === "bb";
+  const typeVal = isBB ? ind.basis : ind.type;      // 均线看 type；布林带看中轨口径 basis
+  const typeLabel = isBB ? t("ind.ed_basis") : t("ind.ed_type");
   const pop = document.createElement("div");
   pop.className = "ind-editor";
   pop._indId = ind.id;
-  pop.innerHTML =
-      `<div class="ind-ed-row"><span>${t("ind.ed_type")}</span>`
-    + `<select class="ind-ed-type"><option value="ema"${ind.type === "ema" ? " selected" : ""}>EMA</option>`
-    + `<option value="sma"${ind.type === "sma" ? " selected" : ""}>SMA</option></select></div>`
+  let html =
+      `<div class="ind-ed-row"><span>${typeLabel}</span>`
+    + `<select class="ind-ed-type"><option value="ema"${typeVal === "ema" ? " selected" : ""}>EMA</option>`
+    + `<option value="sma"${typeVal === "sma" ? " selected" : ""}>SMA</option></select></div>`
     + `<div class="ind-ed-row"><span>${t("ind.ed_period")}</span>`
-    + `<input class="ind-ed-period" type="number" min="1" max="1000" value="${ind.period}"></div>`
-    + `<div class="ind-ed-row"><span>${t("ind.ed_color")}</span>`
+    + `<input class="ind-ed-period" type="number" min="1" max="1000" value="${ind.period}"></div>`;
+  if (isBB) {
+    html += `<div class="ind-ed-row"><span>${t("ind.ed_mult")}</span>`
+      + `<input class="ind-ed-mult" type="number" min="0.1" max="10" step="0.1" value="${ind.mult}"></div>`;
+  }
+  html += `<div class="ind-ed-row"><span>${t("ind.ed_color")}</span>`
     + `<input class="ind-ed-color" type="color" value="${ind.color}"></div>`
     + `<div class="ind-ed-row"><span>${t("ind.ed_width")}</span>`
     + `<select class="ind-ed-width">`
     +   [1, 2, 3, 4, 5].map(l => `<option value="${l}"${(ind.widthLevel || 2) === l ? " selected" : ""}>${l}</option>`).join("")
     + `</select></div>`
     + `<button class="ind-ed-done">${t("ind.ed_done")}</button>`;
+  pop.innerHTML = html;
   wrap.appendChild(pop);
   // 贴在被点名字的正下方
   const wr = wrap.getBoundingClientRect(), ar = anchorEl.getBoundingClientRect();
   pop.style.left = Math.round(ar.left - wr.left) + "px";
   pop.style.top = Math.round(ar.bottom - wr.top + 4) + "px";
-  pop.querySelector(".ind-ed-type").addEventListener("change", e => setIndicatorType(ind.id, e.target.value));
-  pop.querySelector(".ind-ed-period").addEventListener("change", e => setIndicatorPeriod(ind.id, parseInt(e.target.value, 10)));
+  pop.querySelector(".ind-ed-type").addEventListener("change",
+    e => isBB ? setIndicatorBasis(ind.id, e.target.value) : setIndicatorType(ind.id, e.target.value));
+  pop.querySelector(".ind-ed-period").addEventListener("change", e => {
+    if (!setIndicatorPeriod(ind.id, parseInt(e.target.value, 10))) e.target.value = String(ind.period);
+  });
+  const multEl = pop.querySelector(".ind-ed-mult");
+  if (multEl) multEl.addEventListener("change", e => {
+    if (!setIndicatorMult(ind.id, parseFloat(e.target.value))) e.target.value = String(ind.mult);
+  });
   pop.querySelector(".ind-ed-color").addEventListener("input", e => setIndicatorColor(ind.id, e.target.value));
   pop.querySelector(".ind-ed-width").addEventListener("change", e => setIndicatorWidthLevel(ind.id, parseInt(e.target.value, 10)));
   pop.querySelector(".ind-ed-done").addEventListener("click", closeIndicatorEditor);
@@ -1323,7 +1459,7 @@ function bindControls() {
   });
   updateOrderModeUI();   // 初始化"显示全部订单"的可用状态
 
-  // 技术指标：添加一条 EMA/SMA（周期取输入框的值）
+  // 技术指标：添加一条 EMA/SMA 或一组布林带（周期取输入框的值）
   $("ind-add").addEventListener("click", () => {
     const type = $("ind-type").value;
     const period = parseInt($("ind-period").value, 10);

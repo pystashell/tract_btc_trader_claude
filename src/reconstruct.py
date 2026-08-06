@@ -105,21 +105,20 @@ def load_fills(conn, coin: str = "BTC") -> list[FillEvent]:
 
 
 def load_account_value_series(conn) -> list[tuple[int, float]]:
-    """优先用 portfolio.allTime；如果某点 value 为 None 则跳过。
+    """账户总价值时间序列，口径 = Hyperbot 的 "Account Total Value"。
 
-    portfolio.allTime 是相对稀疏（每天一两个点），但已覆盖完整账期。
-    必要时还可以叠加 clearinghouse_snapshots 的实时点提升精度。
+    用 portfolio 的 allTime accountValueHistory——这正是 Hyperliquid / Hyperbot
+    展示的"账户总价值"那条序列（拆账后主要体现为现货 USDC 余额那一份）。
+
+    **绝对不要再叠加 clearinghouse_snapshots.account_value**：那是
+    marginSummary.accountValue，即"仅永续账户"的权益（数量级 ~3 万），和这里的
+    账户总价值（~9.6 万）根本不是一个口径。两者混进同一条序列后，会在每个
+    clearinghouse 快照时刻砸出向下尖峰（→ 杠杆假性飙到 ~3x），就是那个 34714
+    的来历。这条快照本身是真实数据、不能删，只是不能拿来当总账户价值用。
     """
     rows = db.portfolio_series(conn, period="allTime")
     out = [(r["timestamp"], r["account_value"]) for r in rows
            if r["account_value"] is not None]
-    # 叠加 clearinghouse_snapshots（我们自己抓的实时点）
-    ch = list(conn.execute(
-        "SELECT fetched_at, account_value FROM clearinghouse_snapshots "
-        "WHERE account_value IS NOT NULL ORDER BY fetched_at ASC"
-    ).fetchall())
-    for r in ch:
-        out.append((r["fetched_at"], r["account_value"]))
     out.sort(key=lambda x: x[0])
     return out
 

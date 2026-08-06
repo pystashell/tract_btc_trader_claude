@@ -39,6 +39,9 @@ def main() -> int:
     parser.add_argument("--backfill-from-fills", action="store_true",
                         help="把 fills 表里出现过但 orders 表里没有的 oid 反推成虚拟订单")
     parser.add_argument("--user", default=config.TARGET_USER, help="覆盖被追踪地址")
+    parser.add_argument("--max-age-days", type=int, default=None,
+                        help="（给定时任务用的保底开关）只有距上次成功更新 ≥ N 天才真正抓取；"
+                             "数据仍新则什么都不做、直接退出。手动运行不带此参数时行为不变，永远全量抓取。")
     args = parser.parse_args()
 
     conn = db.connect()
@@ -53,6 +56,26 @@ def main() -> int:
         print("[update] 从 fills 反推缺失订单 ...")
         counts = fetch.backfill_orders_from_fills(conn)
         print(f"[update] 反推完成: {counts}")
+
+    # 定时任务保底闸门：只有传了 --max-age-days 才生效。距上次「成功」更新不到 N 天，
+    # 就直接退出、什么都不做（负责高频"检查"的那个每周任务用它）。上次是失败/从没成功过
+    # → 照常抓取（自愈）。手动运行不带此参数 → 走下面正常流程，行为和以前一模一样，永远抓。
+    if args.max_age_days is not None and not args.no_fetch:
+        row = conn.execute(
+            "SELECT finished_at FROM update_runs WHERE success=1 AND finished_at IS NOT NULL "
+            "ORDER BY finished_at DESC LIMIT 1"
+        ).fetchone()
+        last_ok = row["finished_at"] if row else None
+        if last_ok is not None:
+            age_days = (int(time.time() * 1000) - last_ok) / 86_400_000
+            if age_days < args.max_age_days:
+                print(f"[update] 数据仍新鲜：上次成功更新 {_human(last_ok)}"
+                      f"（{age_days:.1f} 天前）< {args.max_age_days} 天阈值 → 只检查、不抓取。")
+                return 0
+            print(f"[update] 数据已过期：上次成功更新 {_human(last_ok)}"
+                  f"（{age_days:.1f} 天前）≥ {args.max_age_days} 天阈值 → 开始抓取。")
+        else:
+            print("[update] 没有成功的更新记录 → 开始抓取。")
 
     fetch_summary = None
     if not args.no_fetch:

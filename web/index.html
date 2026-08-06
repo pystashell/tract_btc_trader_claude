@@ -9,27 +9,28 @@
 </head>
 <body>
 <header>
+  <button id="btn-lang" class="lang-btn" data-i18n="lang.btn" data-i18n-title="t.lang" title="Switch to English">EN</button>
   <div class="header-row">
     <div class="title">
-      <h1>Paul Wei · Hyperliquid BTC 永续追踪</h1>
+      <h1 data-i18n="app.title">Paul Wei · Hyperliquid BTC 永续追踪</h1>
       <div class="addr">
-        地址 <a id="hyperbot-link" href="#" target="_blank" rel="noopener">0xdae4df7207feb3b350e4284c8efe5f7dac37f637</a>
-        <span class="muted">（点击跳转 Hyperbot 官方页面对照）</span>
+        <span data-i18n="hdr.addr">地址</span> <a id="hyperbot-link" href="#" target="_blank" rel="noopener">0xdae4df7207feb3b350e4284c8efe5f7dac37f637</a>
+        <span class="muted" data-i18n="hdr.addr_note">（点击跳转 Hyperbot 官方页面对照）</span>
       </div>
     </div>
     <div id="summary-cards" class="cards">
-      <div class="card"><div class="label">账户价值</div><div class="value" id="card-av">—</div><div class="sub" id="card-av-source">clearinghouseState</div></div>
-      <div class="card"><div class="label">真实 BTC 仓位</div><div class="value" id="card-pos">—</div><div class="sub" id="card-pos-side">—</div></div>
-      <div class="card"><div class="label">真实杠杆 (有方向)</div><div class="value" id="card-lev">—</div><div class="sub">仓位名义价值 / 账户总价值</div></div>
-      <div class="card"><div class="label">校验</div><div class="value" id="card-match">—</div><div class="sub" id="card-match-detail">重建 vs 真实</div></div>
-      <div class="card"><div class="label">数据更新</div><div class="value" id="card-update">—</div><div class="sub" id="card-update-detail">本地最近一次抓取</div></div>
+      <div class="card"><div class="label" data-i18n="card.av">账户价值</div><div class="value" id="card-av">—</div><div class="sub" id="card-av-source" data-i18n="card.av_source">账户总价值 (Hyperbot 口径)</div></div>
+      <div class="card"><div class="label" data-i18n="card.pos">当前 BTC 仓位</div><div class="value" id="card-pos">—</div><div class="sub" id="card-pos-side">—</div></div>
+      <div class="card"><div class="label" data-i18n="card.lev">实际杠杆 (有方向)</div><div class="value" id="card-lev">—</div><div class="sub" data-i18n="card.lev_sub">永续合约价值 / 账户价值</div></div>
+      <div class="card"><div class="label" data-i18n="card.match">校验</div><div class="value" id="card-match">—</div><div class="sub" id="card-match-detail" data-i18n="card.match_sub">重建 vs 真实</div></div>
+      <div class="card"><div class="label" data-i18n="card.update">数据更新</div><div class="value" id="card-update">—</div><div class="sub" id="card-update-detail" data-i18n="card.update_sub">本地最近一次抓取</div></div>
     </div>
   </div>
 </header>
 
 <section class="controls">
   <div class="control-group">
-    <span class="label">K 线粒度</span>
+    <span class="label" data-i18n="ctl.interval">K 线粒度</span>
     <div class="seg" id="seg-interval" role="tablist">
       <button data-val="1d">1d</button>
       <button data-val="4h" class="active">4h</button>
@@ -37,105 +38,148 @@
     </div>
   </div>
   <div class="control-group">
-    <span class="label">回放</span>
-    <button id="btn-play">▶ 播放</button>
+    <span class="label" data-i18n="ctl.replay">回放</span>
+    <button id="btn-play" data-i18n="ctl.play">▶ 播放</button>
     <button id="btn-step-back">⏮</button>
     <button id="btn-step-fwd">⏭</button>
-    <label class="speed">速度
-      <select id="play-speed">
-        <option value="1">1×</option>
-        <option value="2" selected>2×</option>
-        <option value="5">5×</option>
-        <option value="15">15×</option>
-        <option value="60">60×</option>
+    <label class="speed"><span data-i18n="ctl.speed">速度 (根/秒)</span>
+      <select id="play-speed" title="每秒播放多少根 K 线，回放中途也能改">
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+        <option value="30">30</option>
+        <option value="60">60</option>
+        <option value="120">120</option>
       </select>
+    </label>
+    <label class="chk" data-i18n-title="t.show_future" title="开=看到未来+回放位置十字线；关=真历史回放隐藏未来。回放中途也可切换">
+      <input type="checkbox" id="chk-show-future" checked>
+      <span data-i18n="ctl.show_future">显示未来</span>
     </label>
   </div>
   <div class="control-group">
-    <span class="label">钉住时间</span>
-    <button id="btn-pin" title="把当前 hover 的时间钉住，鼠标离开不跳走">📌 切换钉住</button>
-    <button id="btn-pin-latest">最新</button>
-    <span id="pin-state" class="muted">未钉住（跟随鼠标）</span>
+    <span class="label" data-i18n="ctl.pin">钉住时间</span>
+    <button id="btn-pin" data-i18n="ctl.pin_toggle" data-i18n-title="t.pin" title="把当前 hover 的时间钉住，鼠标离开不跳走">📌 切换钉住</button>
+    <button id="btn-pin-latest" data-i18n="ctl.pin_latest">最新</button>
+    <span id="pin-state" class="muted" data-i18n="pin.off">未钉住（跟随鼠标）</span>
   </div>
   <div class="control-group">
-    <span class="label">主图挂单线</span>
+    <span class="label" data-i18n="ctl.order_lines">主图挂单线</span>
     <select id="order-lines-count">
-      <option value="0">关闭</option>
-      <option value="4">前 4 大</option>
-      <option value="8">前 8 大</option>
-      <option value="16">前 16 大</option>
-      <option value="999" selected>全部</option>
+      <option value="0" data-i18n="ol.off">关闭</option>
+      <option value="4" data-i18n="ol.top4">前 4 大</option>
+      <option value="8" data-i18n="ol.top8">前 8 大</option>
+      <option value="16" data-i18n="ol.top16">前 16 大</option>
+      <option value="999" selected data-i18n="ol.all">全部</option>
     </select>
   </div>
   <div class="control-group">
-    <span class="label">成交标记</span>
+    <span class="label" data-i18n="ctl.fills">成交标记</span>
     <div class="seg" id="seg-fills-filter">
-      <button data-val="all" class="active" title="主动 + 被动成交全显示">全部</button>
-      <button data-val="taker" title="只显示主动 / taker 成交（Paul 主动发起的）">仅主动</button>
+      <button data-val="all" data-i18n="fills.all" data-i18n-title="t.fills_all" title="主动 + 被动成交全显示">全部</button>
+      <button data-val="taker" class="active" data-i18n="fills.taker" data-i18n-title="t.fills_taker" title="只显示主动 / taker 成交（Paul 主动发起的）">仅主动</button>
     </div>
   </div>
   <div class="control-group">
-    <span class="label">显示全部订单</span>
-    <div class="seg" id="seg-show-all">
-      <button data-val="off" class="active" title="只显示选中时刻仍活跃的挂单（默认）">关</button>
-      <button data-val="on" title="一次性把所有订单按各自完整生命周期画在图上，与选中时刻无关——用来总览 Paul 的全部挂单分布">开</button>
+    <span class="label" data-i18n="ctl.order_mode">挂单显示</span>
+    <div class="seg" id="seg-order-mode">
+      <button data-val="lifecycle" class="active" data-i18n="om.lifecycle" data-i18n-title="t.om_lifecycle" title="每条挂单只在它自己的生命周期（创建 → 成交/撤销）区间内画线">生命周期</button>
+      <button data-val="full" data-i18n="om.full" data-i18n-title="t.om_full" title="把选中时刻仍在挂的订单画成贯穿整个横屏的水平线（红=卖 绿=买，虚线=最终未成交 实线=成交）">铺满横屏</button>
     </div>
   </div>
-  <div class="control-group right">
-    <span class="muted small">成交量、K 线均来自 Hyperliquid 自家（不是 Binance / Coinbase）</span>
+  <div class="control-group">
+    <span class="label" data-i18n="ctl.show_all">显示全部订单</span>
+    <div class="seg" id="seg-show-all">
+      <button data-val="on" data-i18n="seg.on" data-i18n-title="t.show_on" title="一次性把所有订单按各自完整生命周期画在图上，与选中时刻无关——用来总览 Paul 的全部挂单分布">开</button>
+      <button data-val="off" class="active" data-i18n="seg.off" data-i18n-title="t.show_off" title="只显示选中时刻仍活跃的挂单（默认）">关</button>
+    </div>
+  </div>
+  <div class="control-group">
+    <span class="label" data-i18n="ctl.indicators">技术指标</span>
+    <select id="ind-type" data-i18n-title="t.ind_type" title="EMA 更贴近近期价格；SMA 是简单均线">
+      <option value="ema">EMA</option>
+      <option value="sma">SMA</option>
+    </select>
+    <input id="ind-period" type="number" min="1" max="1000" value="15" data-i18n-title="t.ind_period" title="周期（多少根 K 线）">
+    <button id="ind-add" data-i18n="ind.add" data-i18n-title="t.ind_add" title="添加一条均线，可加多条">+ 添加</button>
+    <span class="ind-sub" data-i18n="ind.edit_hint">（在 K 线图左上角图例里改颜色/周期/类型、单独隐藏或删除）</span>
+  </div>
+  <div class="control-group">
+    <span class="label" data-i18n="ctl.order_colors">挂单颜色</span>
+    <span class="ind-sub" data-i18n="side.buy">买</span><input id="order-color-buy" type="color" value="#26a69a" class="ind-color" data-i18n-title="t.color_buy" title="买单线颜色">
+    <span class="ind-sub" data-i18n="side.sell">卖</span><input id="order-color-sell" type="color" value="#ef5350" class="ind-color" data-i18n-title="t.color_sell" title="卖单线颜色">
+  </div>
+  <div class="control-group">
+    <span class="label" data-i18n="ctl.snapshot">历史状态快照</span>
+    <div class="seg" id="seg-snapshot" data-i18n-title="t.snapshot" title="开=显示右侧信息栏；关=隐藏，让 K 线占满">
+      <button data-val="show" class="active" data-i18n="seg.on">开</button>
+      <button data-val="hide" data-i18n="seg.off">关</button>
+    </div>
   </div>
 </section>
 
 <main>
   <div class="charts">
-    <div id="chart-price" class="chart"></div>
-    <div id="chart-lev" class="chart small"></div>
+    <div class="chart-wrap">
+      <span class="chart-tag" data-i18n="chart.price">BTC 价格 · K 线</span>
+      <span class="chart-tag chart-tag-right" data-i18n="ctl.source_note">成交量、K 线均来自 Hyperliquid 自家（不是 Binance / Coinbase）</span>
+      <div id="chart-legend" class="chart-legend"></div>
+      <button id="btn-chart-full" class="chart-full-btn" data-i18n-title="t.fullscreen" title="全屏只看 K 线">⛶</button>
+      <div id="chart-price" class="chart"></div>
+    </div>
+    <div class="chart-wrap">
+      <span class="chart-tag" data-i18n="chart.lev">实际杠杆率 %（永续合约价值 / 账户价值，有方向）</span>
+      <div id="chart-lev" class="chart small"></div>
+    </div>
   </div>
 
   <aside class="side">
     <div class="panel">
-      <div class="panel-head">选中时间的状态</div>
+      <div class="panel-head" data-i18n="panel.state">选中时间的状态</div>
       <div class="kv">
-        <div><span class="k">时间</span><span class="v" id="sel-time">—</span></div>
-        <div><span class="k">BTC 价格 (close)</span><span class="v" id="sel-px">—</span></div>
-        <div><span class="k">当时 BTC 仓位</span><span class="v" id="sel-pos">—</span></div>
-        <div><span class="k">名义价值</span><span class="v" id="sel-notional">—</span></div>
-        <div><span class="k">账户价值</span><span class="v" id="sel-av">—</span></div>
-        <div><span class="k">实际杠杆 (有方向)</span><span class="v" id="sel-lev">—</span></div>
-        <div><span class="k">该 K 线成交笔数</span><span class="v" id="sel-fillscount">—</span></div>
-        <div><span class="k">即将到来的市价成交</span><span class="v" id="sel-incoming">—</span></div>
+        <div><span class="k" data-i18n="kv.time">时间</span><span class="v" id="sel-time">—</span></div>
+        <div><span class="k" data-i18n="kv.px">BTC 价格 (close)</span><span class="v" id="sel-px">—</span></div>
+        <div><span class="k" data-i18n="kv.pos">当时 BTC 仓位</span><span class="v" id="sel-pos">—</span></div>
+        <div><span class="k" data-i18n="kv.notional">永续合约价值</span><span class="v" id="sel-notional">—</span></div>
+        <div><span class="k" data-i18n="kv.av">账户价值</span><span class="v" id="sel-av">—</span></div>
+        <div><span class="k" data-i18n="kv.lev">实际杠杆 (有方向)</span><span class="v" id="sel-lev">—</span></div>
       </div>
     </div>
     <div class="panel">
-      <div class="panel-head">活跃挂单（选中时刻在挂的所有订单）</div>
+      <div class="panel-head" data-i18n="panel.orders">活跃挂单（选中时刻在挂的所有订单）</div>
       <div class="orders-meta muted small">
-        百分比 = 订单名义价值 / 当时账户价值。每条订单的最终命运用 badge 标出：
-        <span class="badge ok">成交</span> / <span class="badge open">在挂</span> / <span class="badge canceled">撤销</span>。
+        <span data-i18n-html="orders.meta"></span>
+        <button id="orders-sort-reset" type="button" data-i18n="orders.reset">恢复默认排序</button>
       </div>
       <table id="orders-table">
         <thead><tr>
-          <th>方向</th><th>价格</th><th>BTC 数量</th><th>名义价值</th><th>占账户%</th><th>类型</th><th>创建</th>
+          <th data-sort="side" data-i18n-label="th.side" data-label="方向" class="left">方向</th>
+          <th data-sort="price" data-i18n-label="th.price" data-label="价格">价格</th>
+          <th data-sort="sz" data-i18n-label="th.sz" data-label="BTC 数量">BTC 数量</th>
+          <th data-sort="notional" data-i18n-label="th.notional" data-label="名义价值">名义价值</th>
+          <th data-sort="pct" data-i18n-label="th.pct" data-label="占账户%">占账户%</th>
+          <th data-sort="type" data-i18n-label="th.type" data-label="类型" class="left">类型</th>
+          <th data-sort="created" data-i18n-label="th.created" data-label="创建" class="left">创建</th>
         </tr></thead>
         <tbody></tbody>
       </table>
-      <div class="muted small" id="orders-empty" hidden>该时刻没有活跃挂单。</div>
+      <div class="muted small" id="orders-empty" hidden data-i18n="orders.empty">该时刻没有活跃挂单。</div>
     </div>
   </aside>
 </main>
 
 <footer>
   <details>
-    <summary>关于数据 / 指标说明</summary>
+    <summary data-i18n="footer.summary">关于数据 / 指标说明</summary>
     <ul>
-      <li><strong>K 线</strong>来自 Hyperliquid <code>candleSnapshot</code>。<strong>成交量是 Hyperliquid 自家</strong>，不是 Binance / Coinbase。</li>
-      <li><strong>真实仓位 / 账户价值</strong>来自 Hyperliquid <code>clearinghouseState</code> 最近一次抓取，是交易所侧的权威值。</li>
-      <li><strong>重建仓位</strong>由 <code>fills</code> 逐条累加而来：<code>B</code> 增加多头、<code>A</code> 减少多头（变空头）。如顶部"校验"不匹配，请检查 fills 方向解析或增量是否完整。</li>
-      <li><strong>实际杠杆（带方向）</strong>= 仓位名义价值 / 账户总价值。正值为多头，负值为空头。例：-0.0263 意为 2.63% Short。</li>
-      <li><strong>挂单对账户的百分比</strong>= 订单 <em>名义价值</em> / 当时账户价值，<em>不是</em>占当前持仓的百分比。</li>
-      <li>箭头标记：<span style="color:#26a69a">▲ 暗绿</span> = 被动买，<span style="color:#ffa726">▲ 亮橙</span> = <strong>主动买</strong>（taker buy）；<span style="color:#ef5350">▼ 暗红</span> = 被动卖，<span style="color:#ec407a">▼ 洋红</span> = <strong>主动卖</strong>（taker sell）。主动 = <code>crossed=true</code>，通常对应 market-like 行为。"即将到来的市价成交"会提前 3 根 K 线在右侧面板上提示。</li>
-      <li>有些订单只能从 <code>historicalOrders</code> 的 2000 条滚动窗口里取到，<strong>更早的订单可能已经掉出窗口</strong>——数据库会把抓到过的所有订单永久保存。配合 weekly snapshot + fills 反推，Paul 的订单 lifecycle 实际是完整记录的。</li>
-      <li>主图上的挂单线段从选中时刻向右延伸（右侧 = 未来），延伸到该挂单的结束时间（成交/撤销时点）；当前仍在挂的延伸到图右端。<strong>实线</strong> = 已成交（命中）；<strong>点线</strong> = 未成交（包括"已被撤销"和"当前还在挂、未来未知"两种情况）。挂单详细信息在右侧表格的 badge 中区分。</li>
-      <li><strong>显示全部订单</strong>（控制栏可开关，默认关）：开启后把所有订单一次性画在主图上，每条按自己<strong>真实的生命周期</strong>（创建 → 成交/撤销）画线，与当前选中时刻无关，用来总览 Paul 历史上全部挂单的价格分布。线型仍是：实线 = 成交、点线 = 未成交。关闭则回到默认的"只看选中时刻活跃挂单"。</li>
+      <li data-i18n-html="footer.li1"></li>
+      <li data-i18n-html="footer.li2"></li>
+      <li data-i18n-html="footer.li3"></li>
+      <li data-i18n-html="footer.li4"></li>
+      <li data-i18n-html="footer.li5"></li>
+      <li data-i18n-html="footer.li6"></li>
+      <li data-i18n-html="footer.li7"></li>
+      <li data-i18n-html="footer.li8"></li>
+      <li data-i18n-html="footer.li9"></li>
     </ul>
   </details>
 </footer>

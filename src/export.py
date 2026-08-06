@@ -44,14 +44,20 @@ def export_summary(conn) -> dict:
         "SELECT * FROM update_runs ORDER BY started_at DESC LIMIT 1"
     ).fetchone()
 
-    # 当前真实仓位的名义价值和杠杆
+    # 账户总价值口径 = portfolio 的 allTime（Account Total Value，与 Hyperbot 官方页面
+    # "Account Total Value" 一致），**不是** clearinghouse 的"仅永续账户"权益
+    # （marginSummary.accountValue，数量级 ~3 万）。杠杆和占比都以账户总价值为分母。
+    av_series = R.load_account_value_series(conn)
+    account_total_value = av_series[-1][1] if av_series else None
+    account_total_as_of = av_series[-1][0] if av_series else None
+
+    # 当前真实仓位：永续合约价值 + 实际杠杆（分母 = 账户总价值）
     truth = cmp["truth"] or {}
-    pos_value = truth.get("position_value")
-    av = truth.get("account_value")
-    if av and pos_value is not None and truth.get("szi") is not None:
-        # 杠杆带符号（多头正，空头负）
+    pos_value = truth.get("position_value")  # 永续合约价值（clearinghouse 真实）
+    if account_total_value and pos_value is not None and truth.get("szi") is not None:
+        # 杠杆带符号（多头正，空头负）= 永续合约价值 / 账户总价值
         sign = 1.0 if truth["szi"] >= 0 else -1.0
-        signed_lev = sign * (pos_value / av) if av else None
+        signed_lev = sign * (pos_value / account_total_value)
     else:
         signed_lev = None
 
@@ -67,11 +73,14 @@ def export_summary(conn) -> dict:
         "clearinghouse": {
             "snapshot_id": snap["id"] if snap else None,
             "fetched_at": snap["fetched_at"] if snap else None,
-            "account_value": snap["account_value"] if snap else None,
+            "account_value": snap["account_value"] if snap else None,   # 仅永续账户权益（参考用）
+            "account_total_value": account_total_value,                  # 账户总价值（Hyperbot 口径）
+            "account_total_as_of": account_total_as_of,
+            "position_value": pos_value,                                 # 永续合约价值
             "total_ntl_pos": snap["total_ntl_pos"] if snap else None,
             "withdrawable": snap["withdrawable"] if snap else None,
             "btc_position": truth,
-            "btc_leverage_signed": signed_lev,
+            "btc_leverage_signed": signed_lev,                           # = 永续合约价值 / 账户总价值
         },
         "reconstruction": {
             "btc_size": cmp["reconstructed"],

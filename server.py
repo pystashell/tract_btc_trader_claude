@@ -41,6 +41,12 @@ class RootHandler(http.server.SimpleHTTPRequestHandler):
     """SimpleHTTPRequestHandler 默认 serve 项目根目录；
     /data/* 单独路由到 PAUL_DATA_ROOT（如果设置了），否则还是项目根下 data/。"""
 
+    # 默认是 HTTP/1.0：每个响应后关闭连接。浏览器首屏会用少数几条 keep-alive 连接
+    # 并发拉多个文件，服务器一关连接，浏览器复用中的那条就被重置 → Failed to fetch、
+    # 图表空白。改用 HTTP/1.1 开启 keep-alive（SimpleHTTPRequestHandler 会带 Content-Length，
+    # 安全），让浏览器的连接池正常复用。
+    protocol_version = "HTTP/1.1"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
@@ -58,6 +64,13 @@ class RootHandler(http.server.SimpleHTTPRequestHandler):
                 return str(DATA_DIR_OVERRIDE / rel_safe)
         return super().translate_path(path)
 
+    def end_headers(self):
+        # 本地 dev server：禁用浏览器缓存，避免改完代码后浏览器还跑旧的 JS/CSS。
+        # no-cache = 每次都先向服务器校验（文件没变返回 304，很快；变了返回 200 新内容）。
+        self.send_header("Cache-Control", "no-cache, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        super().end_headers()
+
     def log_message(self, fmt, *args):
         ts = time.strftime("%H:%M:%S")
         sys.stderr.write(f"[{ts}] {self.address_string()} {fmt % args}\n")
@@ -66,6 +79,10 @@ class RootHandler(http.server.SimpleHTTPRequestHandler):
 class QuietThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+    # 默认 listen backlog 只有 5：首屏并发拉 7+ 个 JSON（含 1.2MB 的 1h）时会超过
+    # backlog，多出来的连接被内核直接拒绝 → 浏览器报 Failed to fetch、图表空白。
+    # 调大到 128，给突发并发留足队列。
+    request_queue_size = 128
 
 
 def find_free_port(host: str, preferred: int) -> int:

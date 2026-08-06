@@ -20,7 +20,9 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
+  overflow-x: hidden;   /* 页面不该出现横向滚动条：任何超宽内容自己在容器里滚 */
 }
+.nowrap { white-space: nowrap; }
 
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -31,6 +33,12 @@ header {
   padding: 14px 20px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
+  position: relative;
+}
+/* 语言切换按钮：整页最右上角 */
+.lang-btn {
+  position: absolute; top: 10px; right: 16px; z-index: 20;
+  padding: 3px 10px; font-size: 12px;
 }
 .header-row {
   display: flex;
@@ -64,6 +72,7 @@ header {
 .card .sub { font-size: 11px; color: var(--muted); }
 .card .value.green { color: var(--green); }
 .card .value.red { color: var(--red); }
+.card .value.yellow { color: var(--yellow); }
 
 .controls {
   display: flex;
@@ -120,6 +129,25 @@ select {
   padding: 4px 6px;
 }
 .speed { display: inline-flex; align-items: center; gap: 6px; }
+.chk { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+.chk input { cursor: pointer; }
+
+/* 技术指标控件（添加入口 + 挂单颜色共用色块） */
+#ind-period {
+  width: 56px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font: inherit;
+}
+.ind-color {
+  width: 16px; height: 16px; padding: 0; border: 1px solid var(--line);
+  border-radius: 3px; background: none; cursor: pointer; vertical-align: middle;
+}
+.ind-color::-webkit-color-swatch-wrapper { padding: 0; }
+.ind-color::-webkit-color-swatch { border: none; border-radius: 2px; }
+.ind-sub { color: var(--muted); font-size: 11px; }
+
+/* 置灰不可用的分段控件（如"铺满横屏"形态下的"显示全部订单"） */
+.seg.disabled { opacity: 0.4; pointer-events: none; }
 
 main {
   display: grid;
@@ -128,12 +156,75 @@ main {
   padding: 12px 20px;
   min-height: calc(100vh - 220px);
 }
+/* 隐藏 PIT：右侧信息栏收起，K 线占满整行 */
+main.sidebar-collapsed { grid-template-columns: 1fr; }
+main.sidebar-collapsed .side { display: none; }
 .charts {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
 }
+.chart-wrap { position: relative; min-width: 0; }
+/* 图左上角的标题标签（覆盖在图上，不挡交互） */
+.chart-tag {
+  position: absolute; top: 6px; left: 10px; z-index: 3;
+  font-size: 11px; color: var(--muted); pointer-events: none;
+  background: rgba(22, 27, 34, 0.72); padding: 1px 7px; border-radius: 4px;
+}
+/* 图右上角的说明标签（数据来源），避开右侧价格轴 */
+.chart-tag-right { left: auto; right: 92px; }
+/* K 线图右上角的全屏按钮 */
+.chart-full-btn {
+  position: absolute; top: 4px; right: 6px; z-index: 6;
+  background: rgba(22, 27, 34, 0.72); border: 1px solid var(--line);
+  color: var(--muted); border-radius: 4px; padding: 0 6px;
+  font-size: 14px; line-height: 1.5; cursor: pointer;
+}
+.chart-full-btn:hover { color: var(--text); border-color: var(--blue); }
+/* 全屏放大：K 线图铺满整个视口，只看 K 线 */
+.chart-wrap.maximized {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg); padding: 10px;
+}
+.chart-wrap.maximized #chart-price { height: calc(100vh - 20px); }
+/* 图左上角的指标图例（仿 TradingView）：每条一行，眼睛可单独隐藏 */
+.chart-legend {
+  position: absolute; top: 26px; left: 10px; z-index: 4;
+  display: flex; flex-direction: column; gap: 1px; font-size: 12px;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-item.off { opacity: 0.5; }
+.legend-eye {
+  background: rgba(22, 27, 34, 0.6); border: none; padding: 0 3px;
+  font-size: 12px; line-height: 1.5; cursor: pointer; border-radius: 3px;
+}
+.legend-name {
+  cursor: pointer; font-weight: 600;
+  background: rgba(22, 27, 34, 0.6); padding: 0 5px; border-radius: 3px;
+}
+.legend-item.off .legend-name { text-decoration: line-through; }
+.legend-x {
+  background: rgba(22, 27, 34, 0.6); border: none; color: var(--muted);
+  cursor: pointer; padding: 0 4px; font-size: 13px; line-height: 1.4; border-radius: 3px;
+}
+.legend-x:hover { color: var(--red); }
+/* 点击图例名字弹出的指标编辑小框（颜色/周期/类型/粗细） */
+.ind-editor {
+  position: absolute; z-index: 10; min-width: 158px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px; display: flex; flex-direction: column; gap: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); font-size: 12px;
+}
+.ind-ed-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ind-ed-row > span { color: var(--muted); }
+.ind-ed-row select, .ind-ed-row input {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line);
+  border-radius: 4px; padding: 2px 4px; font: inherit;
+}
+.ind-ed-period { width: 64px; }
+.ind-ed-color { width: 36px; height: 22px; padding: 0; cursor: pointer; }
+.ind-ed-done { align-self: flex-end; padding: 3px 12px; }
 .chart {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -153,6 +244,7 @@ main {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 12px;
+  overflow-x: auto;   /* 万一表格还是略宽，就在面板内横滚，不撑破页面 */
 }
 .panel-head {
   font-weight: 600;
@@ -179,10 +271,18 @@ main {
 }
 #orders-table th, #orders-table td {
   text-align: right;
-  padding: 4px 6px;
+  padding: 4px 4px;
   border-bottom: 1px solid var(--line);
 }
 #orders-table th { color: var(--muted); font-weight: 500; }
+#orders-table th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
+#orders-table th[data-sort]:hover { color: var(--text); }
+#orders-table th .sort-ind { color: var(--blue); font-size: 10px; }
+#orders-table th .sort-ind sup { font-size: 9px; }
+#orders-sort-reset {
+  background: none; border: none; padding: 0; margin-left: 4px;
+  color: var(--blue); cursor: pointer; font-size: 11px; text-decoration: underline;
+}
 #orders-table td.left, #orders-table th.left { text-align: left; }
 #orders-table tr.buy td.side { color: var(--green); }
 #orders-table tr.sell td.side { color: var(--red); }

@@ -447,6 +447,7 @@ let orderLinesPrimitive = null;   // "显示全部订单"模式用一个 canvas 
 
 function makeCharts() {
   const common = {
+    autoSize: true,   // 用 ResizeObserver 自动贴合容器大小：K 线图用 flex 撑满视口，随窗口/布局变化自适应
     layout: {
       background: { color: "#161b22" },
       textColor: "#cdd9e5",

@@ -13,7 +13,8 @@
 }
 
 * { box-sizing: border-box; }
-html, body {
+html { height: 100%; }
+body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
@@ -22,6 +23,22 @@ html, body {
   font-size: 14px;
   overflow-x: hidden;   /* 页面不该出现横向滚动条：任何超宽内容自己在容器里滚 */
 }
+/* 首屏区：header + 控制栏 + 图表正好占满一个视口高度。
+   用固定 height（而非 min-height）给 main 一个确定高度，否则右侧挂单列表很长时会把
+   grid 行撑高、图表跟着溢出。footer 在 .app-main 之外，正好落在首屏下方，往下滑才出现。 */
+.app-main {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 深色主题滚动条：覆盖侧栏纵向条、整页条、任何滚动容器的默认白色条，跟黑色主题一致 */
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }   /* Firefox */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--panel-2); }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4552; }
+::-webkit-scrollbar-corner { background: var(--panel-2); }
 .nowrap { white-space: nowrap; }
 
 a { color: var(--blue); text-decoration: none; }
@@ -30,10 +47,11 @@ a:hover { text-decoration: underline; }
 .small { font-size: 12px; }
 
 header {
-  padding: 14px 20px;
+  padding: 12px 4px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
   position: relative;
+  flex: 0 0 auto;
 }
 /* 语言切换按钮：整页最右上角 */
 .lang-btn {
@@ -79,9 +97,10 @@ header {
   gap: 18px;
   flex-wrap: wrap;
   align-items: center;
-  padding: 10px 20px;
+  padding: 10px 4px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
+  flex: 0 0 auto;
 }
 .control-group {
   display: flex;
@@ -152,9 +171,10 @@ select {
 main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 12px;
-  padding: 12px 20px;
-  min-height: calc(100vh - 220px);
+  gap: 10px;
+  padding: 8px 4px;    /* 左右几乎贴边：K 线蜡烛本身就画到图表左缘，留 4px 发丝边、与上方控制栏对齐 */
+  flex: 1 1 auto;      /* 吃掉 header / 控制栏之外、footer 之上的全部竖向空间 */
+  min-height: 0;
 }
 /* 隐藏 PIT：右侧信息栏收起，K 线占满整行 */
 main.sidebar-collapsed { grid-template-columns: 1fr; }
@@ -164,8 +184,23 @@ main.sidebar-collapsed .side { display: none; }
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  min-height: 0;
+  height: 100%;          /* 填满左列（grid 默认 stretch 也会给到，这里双保险） */
 }
 .chart-wrap { position: relative; min-width: 0; }
+/* K 线图（第一个 chart-wrap）吃掉杠杆图之外的全部高度；杠杆图固定较矮。 */
+.charts > .chart-wrap:first-child {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.charts > .chart-wrap:first-child > .chart {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+.charts > .chart-wrap:last-child { flex: 0 0 auto; }
 /* 图左上角的标题标签（覆盖在图上，不挡交互） */
 .chart-tag {
   position: absolute; top: 6px; left: 10px; z-index: 3;
@@ -231,13 +266,25 @@ main.sidebar-collapsed .side { display: none; }
   border-radius: 8px;
   height: 520px;
 }
-.chart.small { height: 200px; }
+.chart.small { height: 130px; }   /* 杠杆图缩到约现在的 60%，省下的高度让给上面的 K 线图 */
 
 .side {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;   /* 侧栏本身不滚动：状态面板固定在上，挂单面板在自己内部纵向滚动 */
+}
+/* 上面的"选中时间状态"面板按内容高度固定，始终可见 */
+.side > .panel { flex: 0 0 auto; }
+/* 下面的挂单面板吃掉剩余高度；行多时只在这个面板内部纵向滚动，不撑高整页 */
+.side > .panel:last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .panel {
   background: var(--panel);
@@ -267,15 +314,16 @@ main.sidebar-collapsed .side { display: none; }
 #orders-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 11px;
 }
 #orders-table th, #orders-table td {
   text-align: right;
-  padding: 4px 4px;
+  padding: 3px 2px;
   border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;   /* 少数超宽内容（如触发单类型串）就地折行，不再撑出横向滚动条 */
 }
 #orders-table th { color: var(--muted); font-weight: 500; }
-#orders-table th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
+#orders-table th[data-sort] { cursor: pointer; user-select: none; white-space: normal; }
 #orders-table th[data-sort]:hover { color: var(--text); }
 #orders-table th .sort-ind { color: var(--blue); font-size: 10px; }
 #orders-table th .sort-ind sup { font-size: 9px; }
@@ -312,14 +360,20 @@ main.sidebar-collapsed .side { display: none; }
 .orders-meta { margin-bottom: 4px; }
 
 footer {
-  padding: 12px 20px 30px;
+  padding: 12px 4px 24px;
   color: var(--muted);
   font-size: 12px;
 }
 footer summary { cursor: pointer; }
 
 @media (max-width: 1100px) {
-  main { grid-template-columns: 1fr; }
-  .chart { height: 420px; }
-  .chart.small { height: 160px; }
+  /* 窄屏：回到普通文档流（图表在上、侧栏在下，整页滚动），不做视口铺满 */
+  .app-main { display: block; height: auto; }
+  main { grid-template-columns: 1fr; flex: none; }
+  .charts { height: auto; }
+  .charts > .chart-wrap:first-child { display: block; flex: none; }
+  .charts > .chart-wrap:first-child > .chart { height: 420px; }
+  .chart.small { height: 150px; }
+  .side { height: auto; overflow: visible; }
+  .side > .panel:last-child { flex: none; min-height: 0; overflow: visible; }
 }

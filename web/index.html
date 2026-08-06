@@ -8,6 +8,8 @@
 <script src="vendor/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
+<!-- app-main = 首屏：header + 控制栏 + 图表正好占满一个视口；footer 在它之外，往下滑才出现 -->
+<div class="app-main">
 <header>
   <button id="btn-lang" class="lang-btn" data-i18n="lang.btn" data-i18n-title="t.lang" title="Switch to English">EN</button>
   <div class="header-row">
@@ -166,6 +168,7 @@
     </div>
   </aside>
 </main>
+</div><!-- /.app-main -->
 
 <footer>
   <details>

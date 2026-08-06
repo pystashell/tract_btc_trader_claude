@@ -97,13 +97,14 @@
   </div>
   <div class="control-group">
     <span class="label" data-i18n="ctl.indicators">技术指标</span>
-    <select id="ind-type" data-i18n-title="t.ind_type" title="EMA 更贴近近期价格；SMA 是简单均线">
+    <select id="ind-type" data-i18n-title="t.ind_type" title="EMA 更贴近近期价格；SMA 是简单均线；布林带默认采用 EMA 中轨和同周期指数加权波动率，添加后可修改中轨、倍数与周期">
       <option value="ema">EMA</option>
       <option value="sma">SMA</option>
+      <option value="bb" data-i18n="ind.bb_opt">布林带 (EMA)</option>
     </select>
     <input id="ind-period" type="number" min="1" max="1000" value="15" data-i18n-title="t.ind_period" title="周期（多少根 K 线）">
-    <button id="ind-add" data-i18n="ind.add" data-i18n-title="t.ind_add" title="添加一条均线，可加多条">+ 添加</button>
-    <span class="ind-sub" data-i18n="ind.edit_hint">（在 K 线图左上角图例里改颜色/周期/类型、单独隐藏或删除）</span>
+    <button id="ind-add" data-i18n="ind.add" data-i18n-title="t.ind_add" title="添加一个技术指标，可添加多个">+ 添加</button>
+    <span class="ind-sub" data-i18n="ind.edit_hint">（在 K 线图左上角图例里改颜色/周期/类型；布林带还可改中轨与倍数）</span>
   </div>
   <div class="control-group">
     <span class="label" data-i18n="ctl.order_colors">挂单颜色</span>

@@ -64,8 +64,6 @@ const els = {
   cardPos: $("card-pos"),
   cardPosSide: $("card-pos-side"),
   cardLev: $("card-lev"),
-  cardMatch: $("card-match"),
-  cardMatchDetail: $("card-match-detail"),
   cardUpdate: $("card-update"),
   cardUpdateDetail: $("card-update-detail"),
   hyperbotLink: $("hyperbot-link"),
@@ -429,18 +427,6 @@ function renderSummaryCards() {
   const levCls = levColor(lev);
   if (levCls) els.cardLev.classList.add(levCls);
 
-  const m = s.reconstruction;
-  els.cardMatch.classList.remove("green", "red");
-  if (m.matches_clearinghouse) {
-    els.cardMatch.textContent = t("check.ok");
-    els.cardMatch.classList.add("green");
-  } else {
-    els.cardMatch.textContent = t("check.bad");
-    els.cardMatch.classList.add("red");
-  }
-  els.cardMatchDetail.textContent =
-    t("check.detail", fmtBtc(m.btc_size), fmtBtc(m.diff_vs_clearinghouse));
-
   const lu = s.latest_update;
   els.cardUpdate.textContent = fmtTs(lu.finished_at || lu.started_at);
   els.cardUpdateDetail.textContent = lu.success ? t("update.ok") : t("update.bad");
@@ -458,6 +444,7 @@ function makeCharts() {
     layout: {
       background: { color: "#161b22" },
       textColor: "#cdd9e5",
+      fontSize: 10,   // 图内坐标轴/标签字号也调小，跟整体 80% 缩放一致
       attributionLogo: false,   // 去掉右下角 TradingView 水印图标
     },
     grid: {
@@ -478,7 +465,12 @@ function makeCharts() {
     },
   };
 
-  priceChart = LWC.createChart($("chart-price"), common);
+  // 上图（K 线）显示时间轴，日期轴就落在 K 线图正下方；下面的杠杆副图隐藏时间轴，
+  // 于是版面是：K 线图 → 日期轴 → 杠杆图。全局仍只有一条时间轴，不多占高度。
+  priceChart = LWC.createChart($("chart-price"), {
+    ...common,
+    timeScale: { ...common.timeScale, visible: true },
+  });
   priceSeries = priceChart.addCandlestickSeries({
     upColor: "#26a69a",
     downColor: "#ef5350",
@@ -502,7 +494,9 @@ function makeCharts() {
 
   levChart = LWC.createChart($("chart-lev"), {
     ...common,
-    timeScale: { ...common.timeScale, visible: true },
+    // 日期轴只放在上面 K 线图的下方（K 线图默认显示时间轴）；杠杆副图这里隐藏时间轴，
+    // 于是版面变成：K 线图 → 日期轴 → 杠杆图，而不是把日期轴压在最底下的杠杆图下面。
+    timeScale: { ...common.timeScale, visible: false },
     rightPriceScale: {
       ...common.rightPriceScale,
       // 比例尺以 0 为基线
@@ -513,12 +507,16 @@ function makeCharts() {
   // 每根柱子的颜色在 applyTimelineToCharts 里用 levBarColor 单独给。
   levSeries = levChart.addHistogramSeries({
     base: 0,   // 从 0 轴起算：>0 向上、<0 向下
+    lastValueVisible: false,   // 不在轴上显示"最新值"那个彩色标签（0% / 62% / 200% 三档看着别扭）
+    priceLineVisible: false,
     priceFormat: {
       type: "custom",
-      formatter: (v) => (v * 100).toFixed(2) + "%",
-      minMove: 0.0001,
+      formatter: (v) => (v * 100).toFixed(0) + "%",   // 轴上刻度取整：0% / 100% / 200%，干净
+      minMove: 0.01,
     },
   });
+  // 收窄上下留白，让柱子在这张矮图里占满高度
+  levSeries.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.05 } });
 
   // 同步时间轴
   const syncing = { fwd: false, bwd: false };
@@ -1342,8 +1340,6 @@ function renderOrdersTable(bar) {
     const tr = document.createElement("tr");
     tr.className = o.side === "B" ? "buy" : "sell";
     const pctStr = o._pct === null ? "—" : (o._pct * 100).toFixed(2) + "%";
-    const typeStr = o.is_trigger ? `${o.order_type || "Trigger"} @${fmtUsd(o.trigger_px, 0)}`
-      : (o.order_type || "Limit");
     // status badge：成交=绿，撤销=灰，在挂=黄
     const statusBadge = o.status === "filled"
       ? `<span class="badge ok">${t("badge.filled")}</span>`
@@ -1356,7 +1352,6 @@ function renderOrdersTable(bar) {
       <td>${fmtBtc(o.orig_sz || o.sz, 5)}</td>
       <td>${fmtUsd(o._notional, 0)}</td>
       <td>${pctStr}</td>
-      <td class="left">${typeStr}${o.reduce_only ? " · RO" : ""}</td>
       <td class="left muted small nowrap">${fmtTsShort(o.timestamp)}</td>
     `;
     els.ordersTableBody.appendChild(tr);
@@ -1514,11 +1509,14 @@ function bindControls() {
       if (_lastOrdersBar) renderOrdersTable(_lastOrdersBar);
     });
   });
-  $("orders-sort-reset").addEventListener("click", () => {
-    state.ordersSort = [{ key: "side", dir: 1 }, { key: "price", dir: 1 }];
-    updateOrdersSortIndicators();
-    if (_lastOrdersBar) renderOrdersTable(_lastOrdersBar);
-  });
+  const sortReset = $("orders-sort-reset");   // 说明栏已删除，按钮可能不存在
+  if (sortReset) {
+    sortReset.addEventListener("click", () => {
+      state.ordersSort = [{ key: "side", dir: 1 }, { key: "price", dir: 1 }];
+      updateOrdersSortIndicators();
+      if (_lastOrdersBar) renderOrdersTable(_lastOrdersBar);
+    });
+  }
   updateOrdersSortIndicators();   // 启动时先画一次默认指示箭头
 
   // 点击主图任意位置 → 切换钉住到该 K 线

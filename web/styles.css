@@ -124,7 +124,8 @@ header {
   cursor: pointer;
   font: inherit;
 }
-.seg button.active {
+.seg button.active,
+#btn-pin.active {
   background: var(--blue);
   color: #fff;
 }

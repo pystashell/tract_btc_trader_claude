@@ -20,7 +20,7 @@ body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
-  font-size: 14px;
+  font-size: 12px;   /* 全局字号按约 80% 缩小（原 14px），整体更紧凑、单屏信息更多 */
   overflow-x: hidden;   /* 页面不该出现横向滚动条：任何超宽内容自己在容器里滚 */
 }
 /* 首屏区：header + 控制栏 + 图表正好占满一个视口高度。
@@ -44,10 +44,10 @@ body {
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .muted { color: var(--muted); }
-.small { font-size: 12px; }
+.small { font-size: 11px; }
 
 header {
-  padding: 12px 4px;
+  padding: 8px 4px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
   position: relative;
@@ -55,8 +55,8 @@ header {
 }
 /* 语言切换按钮：整页最右上角 */
 .lang-btn {
-  position: absolute; top: 10px; right: 16px; z-index: 20;
-  padding: 3px 10px; font-size: 12px;
+  position: absolute; top: 8px; right: 12px; z-index: 20;
+  padding: 2px 8px; font-size: 11px;
 }
 .header-row {
   display: flex;
@@ -66,48 +66,48 @@ header {
   flex-wrap: wrap;
 }
 .title h1 {
-  margin: 0 0 4px;
-  font-size: 18px;
+  margin: 0 0 3px;
+  font-size: 15px;
   font-weight: 600;
 }
-.title .addr { font-size: 12px; color: var(--muted); }
+.title .addr { font-size: 11px; color: var(--muted); }
 .title .addr a { color: var(--text); font-family: ui-monospace, Consolas, monospace; }
 
 .cards {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .card {
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 8px 12px;
-  min-width: 160px;
+  padding: 6px 9px;
+  min-width: 130px;
 }
-.card .label { font-size: 11px; color: var(--muted); }
-.card .value { font-size: 18px; font-weight: 600; margin: 2px 0; }
-.card .sub { font-size: 11px; color: var(--muted); }
+.card .label { font-size: 10px; color: var(--muted); }
+.card .value { font-size: 15px; font-weight: 600; margin: 1px 0; }
+.card .sub { font-size: 10px; color: var(--muted); }
 .card .value.green { color: var(--green); }
 .card .value.red { color: var(--red); }
 .card .value.yellow { color: var(--yellow); }
 
 .controls {
   display: flex;
-  gap: 18px;
+  gap: 12px;
   flex-wrap: wrap;
   align-items: center;
-  padding: 10px 4px;
+  padding: 7px 4px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
   flex: 0 0 auto;
 }
 .control-group {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
-.control-group .label { color: var(--muted); font-size: 12px; }
+.control-group .label { color: var(--muted); font-size: 11px; }
 .control-group.right { margin-left: auto; }
 
 .seg {
@@ -120,11 +120,12 @@ header {
   background: transparent;
   color: var(--text);
   border: 0;
-  padding: 6px 12px;
+  padding: 4px 10px;
   cursor: pointer;
   font: inherit;
 }
-.seg button.active {
+.seg button.active,
+#btn-pin.active {
   background: var(--blue);
   color: #fff;
 }
@@ -134,7 +135,7 @@ button {
   border: 1px solid var(--line);
   color: var(--text);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 5px 8px;
   cursor: pointer;
   font: inherit;
 }
@@ -145,7 +146,7 @@ select {
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 4px 6px;
+  padding: 3px 5px;
 }
 .speed { display: inline-flex; align-items: center; gap: 6px; }
 .chk { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
@@ -163,16 +164,16 @@ select {
 }
 .ind-color::-webkit-color-swatch-wrapper { padding: 0; }
 .ind-color::-webkit-color-swatch { border: none; border-radius: 2px; }
-.ind-sub { color: var(--muted); font-size: 11px; }
+.ind-sub { color: var(--muted); font-size: 10px; }
 
 /* 置灰不可用的分段控件（如"铺满横屏"形态下的"显示全部订单"） */
 .seg.disabled { opacity: 0.4; pointer-events: none; }
 
 main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 10px;
-  padding: 8px 4px;    /* 左右几乎贴边：K 线蜡烛本身就画到图表左缘，留 4px 发丝边、与上方控制栏对齐 */
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 8px;
+  padding: 6px 4px;    /* 左右几乎贴边：K 线蜡烛本身就画到图表左缘，留 4px 发丝边、与上方控制栏对齐 */
   flex: 1 1 auto;      /* 吃掉 header / 控制栏之外、footer 之上的全部竖向空间 */
   min-height: 0;
 }
@@ -203,9 +204,9 @@ main.sidebar-collapsed .side { display: none; }
 .charts > .chart-wrap:last-child { flex: 0 0 auto; }
 /* 图左上角的标题标签（覆盖在图上，不挡交互） */
 .chart-tag {
-  position: absolute; top: 6px; left: 10px; z-index: 3;
-  font-size: 11px; color: var(--muted); pointer-events: none;
-  background: rgba(22, 27, 34, 0.72); padding: 1px 7px; border-radius: 4px;
+  position: absolute; top: 5px; left: 8px; z-index: 3;
+  font-size: 10px; color: var(--muted); pointer-events: none;
+  background: rgba(22, 27, 34, 0.72); padding: 1px 6px; border-radius: 4px;
 }
 /* 图右上角的说明标签（数据来源），避开右侧价格轴 */
 .chart-tag-right { left: auto; right: 92px; }
@@ -225,8 +226,8 @@ main.sidebar-collapsed .side { display: none; }
 .chart-wrap.maximized #chart-price { height: calc(100vh - 20px); }
 /* 图左上角的指标图例（仿 TradingView）：每条一行，眼睛可单独隐藏 */
 .chart-legend {
-  position: absolute; top: 26px; left: 10px; z-index: 4;
-  display: flex; flex-direction: column; gap: 1px; font-size: 12px;
+  position: absolute; top: 22px; left: 8px; z-index: 4;
+  display: flex; flex-direction: column; gap: 1px; font-size: 11px;
 }
 .legend-item { display: flex; align-items: center; gap: 4px; }
 .legend-item.off { opacity: 0.5; }
@@ -266,12 +267,12 @@ main.sidebar-collapsed .side { display: none; }
   border-radius: 8px;
   height: 520px;
 }
-.chart.small { height: 130px; }   /* 杠杆图缩到约现在的 60%，省下的高度让给上面的 K 线图 */
+.chart.small { height: 62px; }   /* 杠杆图压到约一半，省下的高度全给上面的 K 线图 */
 
 .side {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -290,18 +291,18 @@ main.sidebar-collapsed .side { display: none; }
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   overflow-x: auto;   /* 万一表格还是略宽，就在面板内横滚，不撑破页面 */
 }
 .panel-head {
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--text);
 }
 .kv > div {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
+  padding: 3px 0;
   border-bottom: 1px dashed var(--line);
 }
 .kv > div:last-child { border-bottom: 0; }
@@ -314,7 +315,7 @@ main.sidebar-collapsed .side { display: none; }
 #orders-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 10px;
 }
 #orders-table th, #orders-table td {
   text-align: right;
@@ -323,10 +324,17 @@ main.sidebar-collapsed .side { display: none; }
   overflow-wrap: anywhere;   /* 少数超宽内容（如触发单类型串）就地折行，不再撑出横向滚动条 */
 }
 #orders-table th { color: var(--muted); font-weight: 500; }
-#orders-table th[data-sort] { cursor: pointer; user-select: none; white-space: normal; }
+#orders-table th[data-sort] { cursor: pointer; user-select: none; white-space: normal; position: relative; }
 #orders-table th[data-sort]:hover { color: var(--text); }
-#orders-table th .sort-ind { color: var(--blue); font-size: 10px; }
-#orders-table th .sort-ind sup { font-size: 9px; }
+/* 排序箭头绝对定位到表头角落，不占内联宽度——无论同时对多少列排序，
+   箭头都不会把表头挤宽/挤出一行，表头始终保持原样一排。 */
+#orders-table th .sort-ind {
+  position: absolute; top: -2px; color: var(--blue);
+  font-size: 8px; line-height: 1; pointer-events: none; white-space: nowrap;
+}
+#orders-table th[data-sort]:not(.left) .sort-ind { left: 1px; }   /* 右对齐数字表头：箭头放左上角空白处 */
+#orders-table th[data-sort].left .sort-ind { right: 1px; }         /* 左对齐表头：箭头放右上角空白处 */
+#orders-table th .sort-ind sup { font-size: 8px; }
 #orders-sort-reset {
   background: none; border: none; padding: 0; margin-left: 4px;
   color: var(--blue); cursor: pointer; font-size: 11px; text-decoration: underline;

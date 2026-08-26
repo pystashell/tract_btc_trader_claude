@@ -23,19 +23,24 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def _save_raw_file(payload: Any, endpoint: str, fetched_at: int) -> Path:
-    """同时落地一份原始 JSON 文件做双重保险。"""
+def _save_raw_file(payload: Any, endpoint: str, fetched_at: int, raw_id: int) -> Path:
+    """同时落地一份原始 JSON 文件做双重保险。
+
+    文件名带上 raw_responses.id 后缀，保证唯一：分页 / 回填时（candleSnapshot、
+    userFillsByTime 等）同一 endpoint 会在同一秒、甚至同一毫秒里抓好几页；如果文件名
+    只用时间戳（秒），这些页会重名、互相覆盖，导致文件层备份丢失（踩过的坑）。用数据库
+    自增 id 既保证唯一，又能让每个 raw 文件和 raw_responses 表里的行一一对应。"""
     config.RAW_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.fromtimestamp(fetched_at / 1000, tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    fname = f"{ts}_{endpoint}.json"
+    fname = f"{ts}_{endpoint}_{raw_id}.json"
     path = config.RAW_DIR / fname
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 
 
 def _record(conn, endpoint: str, body: dict, response: Any, fetched_at: int) -> None:
-    db.insert_raw(conn, fetched_at, endpoint, body, response)
-    _save_raw_file(response, endpoint, fetched_at)
+    raw_id = db.insert_raw(conn, fetched_at, endpoint, body, response)   # 返回自增主键
+    _save_raw_file(response, endpoint, fetched_at, raw_id)
 
 
 # -------------------------- 各部分的抓取 --------------------------

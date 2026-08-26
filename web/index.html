@@ -17,14 +17,12 @@
       <h1 data-i18n="app.title">Paul Wei · Hyperliquid BTC 永续追踪</h1>
       <div class="addr">
         <span data-i18n="hdr.addr">地址</span> <a id="hyperbot-link" href="#" target="_blank" rel="noopener">0xdae4df7207feb3b350e4284c8efe5f7dac37f637</a>
-        <span class="muted" data-i18n="hdr.addr_note">（点击跳转 Hyperbot 官方页面对照）</span>
       </div>
     </div>
     <div id="summary-cards" class="cards">
       <div class="card"><div class="label" data-i18n="card.av">账户价值</div><div class="value" id="card-av">—</div><div class="sub" id="card-av-source" data-i18n="card.av_source">账户总价值 (Hyperbot 口径)</div></div>
       <div class="card"><div class="label" data-i18n="card.pos">当前 BTC 仓位</div><div class="value" id="card-pos">—</div><div class="sub" id="card-pos-side">—</div></div>
       <div class="card"><div class="label" data-i18n="card.lev">实际杠杆 (有方向)</div><div class="value" id="card-lev">—</div><div class="sub" data-i18n="card.lev_sub">永续合约价值 / 账户价值</div></div>
-      <div class="card"><div class="label" data-i18n="card.match">校验</div><div class="value" id="card-match">—</div><div class="sub" id="card-match-detail" data-i18n="card.match_sub">重建 vs 真实</div></div>
       <div class="card"><div class="label" data-i18n="card.update">数据更新</div><div class="value" id="card-update">—</div><div class="sub" id="card-update-detail" data-i18n="card.update_sub">本地最近一次抓取</div></div>
     </div>
   </div>
@@ -104,7 +102,6 @@
     </select>
     <input id="ind-period" type="number" min="1" max="1000" value="15" data-i18n-title="t.ind_period" title="周期（多少根 K 线）">
     <button id="ind-add" data-i18n="ind.add" data-i18n-title="t.ind_add" title="添加一个技术指标，可添加多个">+ 添加</button>
-    <span class="ind-sub" data-i18n="ind.edit_hint">（在 K 线图左上角图例里改颜色/周期/类型；布林带还可改中轨与倍数）</span>
   </div>
   <div class="control-group">
     <span class="label" data-i18n="ctl.order_colors">挂单颜色</span>
@@ -149,10 +146,6 @@
     </div>
     <div class="panel">
       <div class="panel-head" data-i18n="panel.orders">活跃挂单（选中时刻在挂的所有订单）</div>
-      <div class="orders-meta muted small">
-        <span data-i18n-html="orders.meta"></span>
-        <button id="orders-sort-reset" type="button" data-i18n="orders.reset">恢复默认排序</button>
-      </div>
       <table id="orders-table">
         <thead><tr>
           <th data-sort="side" data-i18n-label="th.side" data-label="方向" class="left">方向</th>
@@ -160,7 +153,6 @@
           <th data-sort="sz" data-i18n-label="th.sz" data-label="BTC 数量">BTC 数量</th>
           <th data-sort="notional" data-i18n-label="th.notional" data-label="名义价值">名义价值</th>
           <th data-sort="pct" data-i18n-label="th.pct" data-label="占账户%">占账户%</th>
-          <th data-sort="type" data-i18n-label="th.type" data-label="类型" class="left">类型</th>
           <th data-sort="created" data-i18n-label="th.created" data-label="创建" class="left">创建</th>
         </tr></thead>
         <tbody></tbody>
